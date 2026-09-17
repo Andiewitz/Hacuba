@@ -47,6 +47,22 @@ export default function SearchBar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!activeSegment) return;
+    const el = containerRef.current;
+    if (!el) return;
+
+    function handleWheel(e: WheelEvent) {
+      const dropdown = el?.querySelector("[data-dropdown]");
+      if (dropdown && dropdown.contains(e.target as Node)) {
+        e.stopPropagation();
+      }
+    }
+
+    document.addEventListener("wheel", handleWheel, { passive: false, capture: true });
+    return () => document.removeEventListener("wheel", handleWheel, { capture: true });
+  }, [activeSegment]);
+
   const filteredDestinations = destinations.filter((d) =>
     d.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -74,7 +90,7 @@ export default function SearchBar() {
           )}
           <span className="relative block text-xs font-semibold text-foreground">Where</span>
           <span className="relative block text-sm text-muted-foreground">
-            {where || "Search destinations"}
+            {where || "Search locations"}
           </span>
         </button>
 
@@ -128,14 +144,15 @@ export default function SearchBar() {
             initial="hidden"
             animate="visible"
             exit="exit"
-            className="absolute top-full left-0 z-50 mt-3 w-80 rounded-2xl border border-border bg-card p-4 shadow-lg"
+            className="absolute top-full left-0 z-50 mt-3 w-80 rounded-2xl border border-border bg-card p-4 shadow-lg overflow-y-auto max-h-80"
+            data-dropdown
           >
             <p className="mb-3 text-xs font-semibold text-muted-foreground">
-              Suggested destinations
+              Suggested locations
             </p>
             <input
               type="text"
-              placeholder="Search destinations"
+              placeholder="Search locations"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
@@ -183,6 +200,7 @@ export default function SearchBar() {
             animate="visible"
             exit="exit"
             className="absolute top-full left-1/3 z-50 mt-3 w-64 rounded-2xl border border-border bg-card p-2 shadow-lg"
+            data-dropdown
           >
             {priceRanges.map((range, i) => (
               <motion.button
@@ -224,6 +242,7 @@ export default function SearchBar() {
             animate="visible"
             exit="exit"
             className="absolute top-full right-16 z-50 mt-3 w-56 rounded-2xl border border-border bg-card p-2 shadow-lg"
+            data-dropdown
           >
             {propertyTypes.map((type, i) => (
               <motion.button

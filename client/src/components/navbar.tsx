@@ -1,36 +1,50 @@
 "use client";
 
+import { useState } from "react";
 import { Globe, Menu } from "lucide-react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import HacubaLogo from "@/components/hacuba-logo";
 
 const navItems = [
-  { label: "All", emoji: "🌎", active: true },
-  { label: "Homes", emoji: "🏡", active: false },
-  { label: "Lots", emoji: "🌳", active: false },
-  { label: "Commercial", emoji: "🏢", active: false },
+  { label: "All", emoji: "🌎" },
+  { label: "Homes", emoji: "🏡" },
+  { label: "Lots", emoji: "🌳" },
+  { label: "Commercial", emoji: "🏢" },
 ];
 
 export default function Navbar() {
+  const [activeNav, setActiveNav] = useState("All");
+
   return (
-    <header className="sticky top-0 z-50 bg-background">
+    <header className="sticky top-0 z-[100] bg-background">
       <div className="relative mx-auto flex h-20 max-w-[1760px] items-center justify-between px-6 md:px-10 lg:px-20">
         <Link href="/" className="shrink-0">
           <HacubaLogo className="text-primary" />
         </Link>
 
-        <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1.5 shadow-sm">
+        <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-1.5 shadow-sm">
           {navItems.map((item) => (
             <button
               key={item.label}
-              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-                item.active
-                  ? "bg-foreground text-background"
-                  : "text-foreground hover:bg-muted"
-              }`}
+              onClick={() => setActiveNav(item.label)}
+              className="relative flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors hover:bg-muted/30"
             >
-              <span className="text-base">{item.emoji}</span>
-              <span>{item.label}</span>
+              {activeNav === item.label && (
+                <motion.div
+                  layoutId="nav-pill"
+                  className="absolute inset-0 rounded-full bg-foreground"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                />
+              )}
+              <span className="relative text-base">{item.emoji}</span>
+              <span
+                className={`relative ${
+                  activeNav === item.label ? "text-background" : "text-foreground"
+                }`}
+              >
+                {item.label}
+              </span>
             </button>
           ))}
         </nav>
