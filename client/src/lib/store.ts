@@ -1,8 +1,11 @@
 import { configureStore } from "@reduxjs/toolkit";
+import appReducer from "./slices/app";
 
 export const makeStore = () =>
   configureStore({
-    reducer: {},
+    reducer: {
+      app: appReducer,
+    },
   });
 
 export type AppStore = ReturnType<typeof makeStore>;

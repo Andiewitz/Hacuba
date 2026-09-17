@@ -78,8 +78,12 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-            {popularListings.map((listing) => (
-              <PropertyCard key={`${listing.type}-${listing.location}`} {...listing} />
+            {popularListings.map((listing, index) => (
+              <PropertyCard
+                key={`${listing.type}-${listing.location}`}
+                {...listing}
+                priority={index === 0}
+              />
             ))}
           </div>
         </div>

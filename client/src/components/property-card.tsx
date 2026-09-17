@@ -11,6 +11,7 @@ interface PropertyCardProps {
   nights: number;
   rating: number;
   isGuestFavorite?: boolean;
+  priority?: boolean;
 }
 
 export default function PropertyCard({
@@ -21,6 +22,7 @@ export default function PropertyCard({
   nights,
   rating,
   isGuestFavorite = false,
+  priority = false,
 }: PropertyCardProps) {
   return (
     <div className="group flex flex-col gap-2">
@@ -30,6 +32,7 @@ export default function PropertyCard({
           alt={`${type} in ${location}`}
           fill
           unoptimized
+          priority={priority}
           className="object-cover transition-transform duration-300 group-hover:scale-105"
         />
 
