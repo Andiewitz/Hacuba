@@ -26,7 +26,7 @@ export default function PropertyCard({
 }: PropertyCardProps) {
   return (
     <div className="group flex flex-col gap-2">
-      <div className="relative aspect-square overflow-hidden rounded-xl">
+      <div className="relative aspect-square overflow-hidden rounded-[14px]">
         <Image
           src={image}
           alt={`${type} in ${location}`}
