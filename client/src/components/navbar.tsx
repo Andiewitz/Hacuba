@@ -6,13 +6,13 @@ import Link from "next/link";
 const navItems = [
   { label: "All", emoji: "🌎", active: true },
   { label: "Homes", emoji: "🏡", active: false },
-  { label: "Experiences", emoji: "🎈", active: false },
-  { label: "Services", emoji: "🛎️", active: false },
+  { label: "Lots", emoji: "🌳", active: false },
+  { label: "Commercial", emoji: "🏢", active: false },
 ];
 
 export default function Navbar() {
   return (
-    <header className="sticky top-0 z-50 bg-background border-b border-border">
+    <header className="sticky top-0 z-50 bg-background">
       <div className="mx-auto flex h-20 max-w-[1760px] items-center justify-between px-6 md:px-10 lg:px-20">
         <Link href="/" className="flex items-center gap-1 shrink-0">
           <svg
