@@ -2,6 +2,7 @@
 
 import { Globe, Menu } from "lucide-react";
 import Link from "next/link";
+import ParubaLogo from "@/components/paruba-logo";
 
 const navItems = [
   { label: "All", emoji: "🌎", active: true },
@@ -14,22 +15,8 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-background">
       <div className="mx-auto flex h-20 max-w-[1760px] items-center justify-between px-6 md:px-10 lg:px-20">
-        <Link href="/" className="flex items-center gap-1 shrink-0">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 32 32"
-            fill="none"
-            className="text-primary"
-          >
-            <path
-              d="M16 2C8.268 2 2 8.268 2 16s6.268 14 14 14 14-6.268 14-14S23.732 2 16 2zm0 2c2.8 0 5.36 1.04 7.32 2.76L16 16V4zm-9.32 4.76A11.94 11.94 0 0116 4v12L6.68 6.76zM16 28a11.94 11.94 0 01-9.32-4.24L16 16v12zm2-12l9.32-7.24A11.94 11.94 0 0116 28V16z"
-              fill="currentColor"
-            />
-          </svg>
-          <span className="text-xl font-semibold tracking-tight text-foreground font-heading">
-            Paruba
-          </span>
+        <Link href="/" className="shrink-0">
+          <ParubaLogo className="text-primary" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1.5 shadow-sm">
@@ -50,7 +37,7 @@ export default function Navbar() {
 
         <div className="flex items-center gap-2">
           <button className="hidden lg:flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:shadow-md">
-            Become a host
+            Become a seller
           </button>
           <button className="flex items-center justify-center rounded-full border border-border p-2.5 text-foreground transition-colors hover:shadow-md">
             <Globe className="h-4 w-4" />

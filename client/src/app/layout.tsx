@@ -18,6 +18,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Paruba",
   description: "Paruba app",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
