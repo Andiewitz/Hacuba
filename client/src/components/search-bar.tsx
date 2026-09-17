@@ -30,7 +30,7 @@ const propertyTypes = [
 ];
 
 export default function SearchBar() {
-  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [activeSegment, setActiveSegment] = useState<string | null>(null);
   const [where, setWhere] = useState("");
   const [price, setPrice] = useState(priceRanges[0]);
   const [propertyType, setPropertyType] = useState("Any type");
@@ -40,7 +40,7 @@ export default function SearchBar() {
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setActiveDropdown(null);
+        setActiveSegment(null);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -59,48 +59,69 @@ export default function SearchBar() {
 
   return (
     <div ref={containerRef} className="relative mx-auto w-full max-w-3xl">
-      <div className="flex items-center rounded-full border border-border bg-card shadow-md transition-shadow hover:shadow-lg">
+      <div className="relative flex items-center rounded-full border border-border bg-muted/50 shadow-md transition-shadow hover:shadow-lg">
         {/* Where */}
         <button
-          onClick={() => setActiveDropdown(activeDropdown === "where" ? null : "where")}
-          className="flex-1 rounded-l-full px-6 py-4 text-left transition-colors hover:bg-muted"
+          onClick={() => setActiveSegment(activeSegment === "where" ? null : "where")}
+          className="relative flex-1 rounded-l-full px-6 py-4 text-left transition-colors hover:bg-muted/30"
         >
-          <span className="block text-xs font-semibold text-foreground">Where</span>
-          <span className="block text-sm text-muted-foreground">
+          {activeSegment === "where" && (
+            <motion.div
+              layoutId="segment-pill"
+              className="absolute inset-0 rounded-full bg-white shadow-md"
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
+          )}
+          <span className="relative block text-xs font-semibold text-foreground">Where</span>
+          <span className="relative block text-sm text-muted-foreground">
             {where || "Search destinations"}
           </span>
         </button>
 
-        <div className="h-8 w-px bg-border" />
+        <div className="relative z-10 h-8 w-px bg-border/60" />
 
         {/* Price */}
         <button
-          onClick={() => setActiveDropdown(activeDropdown === "price" ? null : "price")}
-          className="flex-1 px-6 py-4 text-left transition-colors hover:bg-muted"
+          onClick={() => setActiveSegment(activeSegment === "price" ? null : "price")}
+          className="relative flex-1 px-6 py-4 text-left transition-colors hover:bg-muted/30"
         >
-          <span className="block text-xs font-semibold text-foreground">Price</span>
-          <span className="block text-sm text-muted-foreground">{price}</span>
+          {activeSegment === "price" && (
+            <motion.div
+              layoutId="segment-pill"
+              className="absolute inset-0 rounded-full bg-white shadow-md"
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
+          )}
+          <span className="relative block text-xs font-semibold text-foreground">Price</span>
+          <span className="relative block text-sm text-muted-foreground">{price}</span>
         </button>
 
-        <div className="h-8 w-px bg-border" />
+        <div className="relative z-10 h-8 w-px bg-border/60" />
 
         {/* Property Type */}
         <button
-          onClick={() => setActiveDropdown(activeDropdown === "type" ? null : "type")}
-          className="flex-1 px-6 py-4 text-left transition-colors hover:bg-muted"
+          onClick={() => setActiveSegment(activeSegment === "type" ? null : "type")}
+          className="relative flex-1 px-6 py-4 text-left transition-colors hover:bg-muted/30"
         >
-          <span className="block text-xs font-semibold text-foreground">Property Type</span>
-          <span className="block text-sm text-muted-foreground">{propertyType}</span>
+          {activeSegment === "type" && (
+            <motion.div
+              layoutId="segment-pill"
+              className="absolute inset-0 rounded-full bg-white shadow-md"
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+            />
+          )}
+          <span className="relative block text-xs font-semibold text-foreground">Property Type</span>
+          <span className="relative block text-sm text-muted-foreground">{propertyType}</span>
         </button>
 
-        <button className="mr-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90">
+        <button className="relative z-10 mr-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90">
           <Search className="h-4 w-4" />
         </button>
       </div>
 
       <AnimatePresence>
         {/* Where Dropdown */}
-        {activeDropdown === "where" && (
+        {activeSegment === "where" && (
           <motion.div
             key="where"
             variants={dropdownVariants}
@@ -128,7 +149,7 @@ export default function SearchBar() {
                   transition={{ delay: i * 0.04, duration: 0.2 }}
                   onClick={() => {
                     setWhere(dest.name);
-                    setActiveDropdown(null);
+                    setActiveSegment(null);
                     setSearchQuery("");
                   }}
                   className="relative flex items-center gap-3 rounded-xl px-3 py-3 text-left transition-colors hover:bg-muted"
@@ -154,7 +175,7 @@ export default function SearchBar() {
         )}
 
         {/* Price Dropdown */}
-        {activeDropdown === "price" && (
+        {activeSegment === "price" && (
           <motion.div
             key="price"
             variants={dropdownVariants}
@@ -171,7 +192,7 @@ export default function SearchBar() {
                 transition={{ delay: i * 0.03, duration: 0.15 }}
                 onClick={() => {
                   setPrice(range);
-                  setActiveDropdown(null);
+                  setActiveSegment(null);
                 }}
                 className="relative flex w-full items-center rounded-xl px-4 py-3 text-sm text-left transition-colors hover:bg-muted"
               >
@@ -195,7 +216,7 @@ export default function SearchBar() {
         )}
 
         {/* Property Type Dropdown */}
-        {activeDropdown === "type" && (
+        {activeSegment === "type" && (
           <motion.div
             key="type"
             variants={dropdownVariants}
@@ -212,7 +233,7 @@ export default function SearchBar() {
                 transition={{ delay: i * 0.03, duration: 0.15 }}
                 onClick={() => {
                   setPropertyType(type);
-                  setActiveDropdown(null);
+                  setActiveSegment(null);
                 }}
                 className="relative flex w-full items-center rounded-xl px-4 py-3 text-sm text-left transition-colors hover:bg-muted"
               >
