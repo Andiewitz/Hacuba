@@ -1,69 +1,89 @@
-import Image from "next/image";
+import Navbar from "@/components/navbar";
+import SearchBar from "@/components/search-bar";
+import PropertyCard from "@/components/property-card";
+
+const popularListings = [
+  {
+    image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=600&fit=crop",
+    type: "Hotel",
+    location: "Mabolo",
+    price: 2576,
+    nights: 2,
+    rating: 4.84,
+    isGuestFavorite: true,
+  },
+  {
+    image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&h=600&fit=crop",
+    type: "Apartment",
+    location: "Cebu City",
+    price: 2067,
+    nights: 2,
+    rating: 4.8,
+  },
+  {
+    image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=600&fit=crop",
+    type: "Apartment",
+    location: "Kasambagan",
+    price: 3540,
+    nights: 2,
+    rating: 5.0,
+    isGuestFavorite: true,
+  },
+  {
+    image: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&h=600&fit=crop",
+    type: "Condo",
+    location: "Cebu City",
+    price: 2314,
+    nights: 2,
+    rating: 4.75,
+  },
+  {
+    image: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=600&h=600&fit=crop",
+    type: "Condo",
+    location: "Cebu City",
+    price: 3484,
+    nights: 2,
+    rating: 4.88,
+    isGuestFavorite: true,
+  },
+  {
+    image: "https://images.unsplash.com/photo-1600573472592-401b489a3cdc?w=600&h=600&fit=crop",
+    type: "Apartment",
+    location: "Guadalupe",
+    price: 2776,
+    nights: 2,
+    rating: 4.85,
+    isGuestFavorite: true,
+  },
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-background">
+      <Navbar />
+
+      <section className="px-6 pt-6 pb-4 md:px-10 lg:px-20">
+        <SearchBar />
+      </section>
+
+      <section className="px-6 py-8 md:px-10 lg:px-20">
+        <div className="mx-auto max-w-[1760px]">
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-2xl font-semibold text-foreground font-heading">
+              Popular homes in Cebu City
+            </h2>
+            <button className="flex h-8 w-8 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:shadow-sm">
+              →
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            {popularListings.map((listing) => (
+              <PropertyCard key={`${listing.type}-${listing.location}`} {...listing} />
+            ))}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </section>
     </div>
   );
 }
