@@ -14,12 +14,12 @@ const navItems = [
 export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-background">
-      <div className="mx-auto flex h-20 max-w-[1760px] items-center justify-between px-6 md:px-10 lg:px-20">
+      <div className="relative mx-auto flex h-20 max-w-[1760px] items-center justify-between px-6 md:px-10 lg:px-20">
         <Link href="/" className="shrink-0">
           <HacubaLogo className="text-primary" />
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1.5 shadow-sm">
+        <nav className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1.5 shadow-sm">
           {navItems.map((item) => (
             <button
               key={item.label}
