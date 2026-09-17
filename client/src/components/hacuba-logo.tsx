@@ -1,12 +1,12 @@
-interface ParubaLogoProps {
+interface HacubaLogoProps {
   iconOnly?: boolean;
   className?: string;
 }
 
-export default function ParubaLogo({
+export default function HacubaLogo({
   iconOnly = false,
   className = "",
-}: ParubaLogoProps) {
+}: HacubaLogoProps) {
   return (
     <span className={`inline-flex items-center gap-1 ${className}`}>
       <svg
@@ -23,7 +23,7 @@ export default function ParubaLogo({
       </svg>
       {!iconOnly && (
         <span className="text-xl font-semibold tracking-tight text-foreground font-heading">
-          Paruba
+          Hacuba
         </span>
       )}
     </span>

@@ -16,8 +16,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Paruba",
-  description: "Paruba app",
+  title: "Hacuba",
+  description: "Hacuba app",
   icons: {
     icon: "/favicon.svg",
   },

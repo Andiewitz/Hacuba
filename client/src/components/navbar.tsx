@@ -2,7 +2,7 @@
 
 import { Globe, Menu } from "lucide-react";
 import Link from "next/link";
-import ParubaLogo from "@/components/paruba-logo";
+import HacubaLogo from "@/components/hacuba-logo";
 
 const navItems = [
   { label: "All", emoji: "🌎", active: true },
@@ -16,7 +16,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-background">
       <div className="mx-auto flex h-20 max-w-[1760px] items-center justify-between px-6 md:px-10 lg:px-20">
         <Link href="/" className="shrink-0">
-          <ParubaLogo className="text-primary" />
+          <HacubaLogo className="text-primary" />
         </Link>
 
         <nav className="hidden md:flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1.5 shadow-sm">
