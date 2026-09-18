@@ -13,6 +13,7 @@ const (
 )
 
 // ValidateEmail rejects empty, oversized, or unparseable addresses.
+// Requires a dotted domain so single-label hosts like "a@b" are rejected.
 func ValidateEmail(email string) error {
 	email = NormalizeEmail(email)
 	if email == "" {
@@ -21,7 +22,12 @@ func ValidateEmail(email string) error {
 	if len(email) > maxEmailLen {
 		return fmt.Errorf("email too long")
 	}
-	if _, err := mail.ParseAddress(email); err != nil {
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return fmt.Errorf("invalid email format")
+	}
+	parts := strings.Split(addr.Address, "@")
+	if len(parts) != 2 || !strings.Contains(parts[1], ".") {
 		return fmt.Errorf("invalid email format")
 	}
 	return nil
