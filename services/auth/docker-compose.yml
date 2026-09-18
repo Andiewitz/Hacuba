@@ -1,0 +1,49 @@
+# Auth service + its private Postgres.
+#
+# NETWORK ISOLATION: auth-db lives ONLY on the `auth-internal` network.
+# It publishes NO ports to the host or to other Compose projects.
+# Only the `auth` container can resolve `auth-db:5432`.
+# No other backend service receives DATABASE_URL or credentials.
+
+services:
+  auth:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://auth_service:${DB_PASSWORD:?set DB_PASSWORD}/auth-db:5432/auth?sslmode=disable
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - auth-internal
+      - default
+    ports:
+      # App traffic only. DB port is intentionally absent here.
+      - "${PORT:-8080}:8080"
+
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth_service
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - auth-internal
+    # NOTE: no `ports:` block — unreachable except via `auth` service.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_service -d auth"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+networks:
+  auth-internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  auth-db-data:
