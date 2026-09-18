@@ -16,16 +16,28 @@ interface PropertyCardProps {
   priority?: boolean;
 }
 
-// Save-burst sparks: fixed radiating angles so the burst is identical on
+// Save splash: water-crown droplets arcing up and out with gravity, like a
+// liquid burst. Fixed angles and distances so the splash is identical on
 // every card and every save (deterministic, SSR-safe — no Math.random).
-const SPARKS = Array.from({ length: 8 }, (_, i) => {
-  const angle = ((i * 45 + 22) * Math.PI) / 180;
-  const distance = 24 + (i % 3) * 4;
+// Angles use screen-clockwise degrees (0° = east, -90° = straight up).
+const DROPLETS = [
+  { angle: -165, dist: 22, size: 5, tone: "bg-amber-400" },
+  { angle: -140, dist: 28, size: 7, tone: "bg-amber-300" },
+  { angle: -118, dist: 32, size: 6, tone: "bg-amber-500" },
+  { angle: -96, dist: 34, size: 9, tone: "bg-amber-400" },
+  { angle: -84, dist: 34, size: 7, tone: "bg-white" },
+  { angle: -62, dist: 32, size: 5, tone: "bg-amber-300" },
+  { angle: -40, dist: 28, size: 8, tone: "bg-amber-500" },
+  { angle: -15, dist: 22, size: 6, tone: "bg-amber-400" },
+  { angle: 155, dist: 16, size: 5, tone: "bg-white" },
+  { angle: 25, dist: 16, size: 5, tone: "bg-amber-300" },
+].map((d, i) => {
+  const rad = (d.angle * Math.PI) / 180;
   return {
-    x: Math.cos(angle) * distance,
-    y: Math.sin(angle) * distance,
-    size: [4, 6, 3][i % 3],
-    tone: ["bg-amber-300", "bg-amber-400", "bg-amber-500"][i % 3],
+    ...d,
+    x: Math.cos(rad) * d.dist,
+    rise: -(22 + (i % 3) * 6),
+    fall: 8 + (i % 2) * 5,
   };
 });
 
@@ -88,25 +100,40 @@ export default function PropertyCard({
                   animate={{ opacity: 0, scale: 1.4 }}
                   transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
                 />
-                {SPARKS.map((spark, i) => (
+                {DROPLETS.map((drop, i) => (
                   <motion.span
                     key={i}
                     aria-hidden="true"
-                    className={`absolute top-1/2 left-1/2 rounded-full ${spark.tone}`}
+                    className="absolute top-1/2 left-1/2"
                     style={{
-                      width: spark.size,
-                      height: spark.size,
-                      marginLeft: -spark.size / 2,
-                      marginTop: -spark.size / 2,
+                      width: drop.size,
+                      height: drop.size,
+                      marginLeft: -drop.size / 2,
+                      marginTop: -drop.size / 2,
                     }}
                     initial={{ opacity: 1, scale: 1, x: 0, y: 0 }}
-                    animate={{ opacity: 0, scale: 0.2, x: spark.x, y: spark.y }}
+                    animate={{
+                      opacity: [1, 1, 0],
+                      scale: [1, 0.9, 0.25],
+                      x: [0, drop.x * 0.75, drop.x],
+                      y: [0, drop.rise, drop.fall],
+                    }}
                     transition={{
-                      duration: 0.45,
-                      delay: i * 0.02,
+                      duration: 0.6,
+                      delay: i * 0.025,
+                      times: [0, 0.45, 1],
                       ease: [0.23, 1, 0.32, 1],
                     }}
-                  />
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={`block h-full w-full ${drop.tone}`}
+                      style={{
+                        borderRadius: "0 50% 50% 50%",
+                        transform: `rotate(${drop.angle + 45}deg)`,
+                      }}
+                    />
+                  </motion.span>
                 ))}
               </motion.span>
             )}
