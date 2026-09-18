@@ -8,7 +8,10 @@ import (
 )
 
 const (
-	minPasswordLen = 12
+	minPasswordLen = 8
+	// maxPasswordLen is bcrypt's hard input limit — reject with a clean
+	// 400 instead of falling through to a hashing failure.
+	maxPasswordLen = 72
 	maxEmailLen    = 254
 )
 
@@ -39,8 +42,14 @@ func ValidatePassword(password string) error {
 	if len(password) < minPasswordLen {
 		return fmt.Errorf("password must be at least %d characters", minPasswordLen)
 	}
+	if len(password) > maxPasswordLen {
+		return fmt.Errorf("password must be at most %d characters", maxPasswordLen)
+	}
 	var hasLetter, hasNumber bool
 	for _, r := range password {
+		if unicode.IsSpace(r) {
+			return fmt.Errorf("password must not contain whitespace")
+		}
 		if unicode.IsLetter(r) {
 			hasLetter = true
 		}
@@ -50,9 +59,6 @@ func ValidatePassword(password string) error {
 	}
 	if !hasLetter || !hasNumber {
 		return fmt.Errorf("password must contain at least one letter and one number")
-	}
-	if strings.Contains(password, " ") {
-		return fmt.Errorf("password must not contain spaces")
 	}
 	return nil
 }

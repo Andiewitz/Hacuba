@@ -12,7 +12,7 @@ import (
 // NewMux builds the full auth HTTP router. cmd/server and all
 // router-level tests share this constructor so contract tests can never
 // drift from production wiring.
-func NewMux(cfg config.Config, store users.Store) *http.ServeMux {
+func NewMux(cfg config.Config, store users.Store) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -34,5 +34,14 @@ func NewMux(cfg config.Config, store users.Store) *http.ServeMux {
 	me := middleware.Authenticate(cfg.JWTSecret, store, handlers.Me(store))
 	mux.Handle("GET /auth/me", me)
 
-	return mux
+	return withSecurityHeaders(mux)
+}
+
+// withSecurityHeaders sets baseline response headers on every route,
+// including error paths (headers are set before handlers run).
+func withSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(w, r)
+	})
 }
