@@ -14,8 +14,8 @@ export default function Template({ children }: { children: React.ReactNode }) {
   return (
     <motion.main
       key={pathname}
-      initial={{ opacity: 0, transform: reduce ? "none" : "translateY(8px)" }}
-      animate={{ opacity: 1, transform: "none" }}
+      initial={{ opacity: 0, y: reduce ? 0 : 8 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
     >
       {children}
