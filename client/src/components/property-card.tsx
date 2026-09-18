@@ -16,6 +16,19 @@ interface PropertyCardProps {
   priority?: boolean;
 }
 
+// Save-burst sparks: fixed radiating angles so the burst is identical on
+// every card and every save (deterministic, SSR-safe — no Math.random).
+const SPARKS = Array.from({ length: 8 }, (_, i) => {
+  const angle = ((i * 45 + 22) * Math.PI) / 180;
+  const distance = 24 + (i % 3) * 4;
+  return {
+    x: Math.cos(angle) * distance,
+    y: Math.sin(angle) * distance,
+    size: [4, 6, 3][i % 3],
+    tone: ["bg-amber-300", "bg-amber-400", "bg-amber-500"][i % 3],
+  };
+});
+
 export default function PropertyCard({
   image,
   type,
@@ -66,20 +79,45 @@ export default function PropertyCard({
               <motion.span
                 key={splashKey}
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 rounded-full border-[3px] border-amber-300"
-                initial={{ opacity: 0.9, scale: 0.5 }}
-                animate={{ opacity: 0, scale: 2.2 }}
-                transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
-              />
+                className="pointer-events-none absolute inset-0"
+              >
+                <motion.span
+                  aria-hidden="true"
+                  className="absolute inset-[-6px] rounded-full bg-amber-300/60 blur-md"
+                  initial={{ opacity: 0.7, scale: 0.5 }}
+                  animate={{ opacity: 0, scale: 1.4 }}
+                  transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+                />
+                {SPARKS.map((spark, i) => (
+                  <motion.span
+                    key={i}
+                    aria-hidden="true"
+                    className={`absolute top-1/2 left-1/2 rounded-full ${spark.tone}`}
+                    style={{
+                      width: spark.size,
+                      height: spark.size,
+                      marginLeft: -spark.size / 2,
+                      marginTop: -spark.size / 2,
+                    }}
+                    initial={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+                    animate={{ opacity: 0, scale: 0.2, x: spark.x, y: spark.y }}
+                    transition={{
+                      duration: 0.45,
+                      delay: i * 0.02,
+                      ease: [0.23, 1, 0.32, 1],
+                    }}
+                  />
+                ))}
+              </motion.span>
             )}
           </AnimatePresence>
           <motion.span
             key={saved ? "saved" : "unsaved"}
             aria-hidden="true"
             className="flex"
-            initial={saved ? { scale: 0.6 } : false}
-            animate={{ scale: 1 }}
-            transition={{ type: "spring", stiffness: 500, damping: 18 }}
+            initial={saved ? { scale: 0.5, rotate: -12 } : false}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 15 }}
           >
             <Bookmark
               strokeWidth={2.5}
