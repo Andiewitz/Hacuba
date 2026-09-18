@@ -77,7 +77,26 @@ only). Production Compose always sets it to the internal `auth-db`.
 ## Verify
 
 ```bash
+# Fast unit suite (memory store, no Docker needed)
 go vet ./...
 go test ./...
 go build ./...
+
+# With real Postgres (applies migrations, exercises constraints,
+# sessions, cascade deletes — skips cleanly without a DSN)
+TEST_DATABASE_URL=postgres://auth_service:pw@localhost:5432/auth?sslmode=disable \
+  go test -race -count=1 ./...
+
+# Live HTTP contract against the isolated compose stack
+docker compose up -d --build
+./tests/compose.smoke.sh http://localhost:8080
+docker compose down -v
 ```
+
+Test layers: `internal/users/postgres_test.go` (real DB + migration
+contract), `internal/server/router_test.go` (status codes, cookie flags,
+rate limit, isolation through the production mux), 
+`internal/handlers/refresh_flow_test.go` (rotation single-use, expiry,
+cross-user CSRF kill, logout), `internal/middleware/*_test.go` (401/403/404
+matrix). CI (`.github/workflows/auth-tests.yml`) runs unit + postgres +
+compose smoke on every push touching `services/auth/**`.
