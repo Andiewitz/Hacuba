@@ -16,8 +16,7 @@ import (
 	"time"
 
 	"github.com/hacuba/auth/internal/config"
-	"github.com/hacuba/auth/internal/handlers"
-	"github.com/hacuba/auth/internal/middleware"
+	"github.com/hacuba/auth/internal/server"
 	"github.com/hacuba/auth/internal/users"
 )
 
@@ -35,27 +34,7 @@ func main() {
 		defer closer.Close()
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"ok","service":"auth"}`))
-	})
-
-	// Public: no session exists yet, so CSRF binding is impossible.
-	// Rate limiting lives inside Login; registration is validated + hashed.
-	mux.Handle("POST /auth/register", handlers.Register(cfg, store))
-	mux.Handle("POST /auth/login", handlers.Login(cfg, store))
-
-	// Session-bound: refresh/logout validate the CSRF double-submit inside
-	// their handlers (they must run before Authenticate, which needs the
-	// short-lived access JWT that may already have expired).
-	mux.Handle("POST /auth/refresh",
-		middleware.RequireCSRF(handlers.Refresh(cfg, store)))
-	mux.Handle("POST /auth/logout", handlers.Logout(cfg, store))
-
-	// Authenticated: Bearer JWT -> context UUID -> own row only.
-	me := middleware.Authenticate(cfg.JWTSecret, store, handlers.Me(store))
-	mux.Handle("GET /auth/me", me)
+	mux := server.NewMux(cfg, store)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
