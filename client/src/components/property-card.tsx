@@ -84,9 +84,7 @@ export default function PropertyCard({
             <Bookmark
               strokeWidth={2.5}
               className={`h-5 w-5 transition-colors duration-150 ${
-                saved
-                  ? "fill-amber-400 text-amber-600"
-                  : "text-white"
+                saved ? "fill-amber-400 text-amber-400" : "text-white"
               }`}
             />
           </motion.span>
