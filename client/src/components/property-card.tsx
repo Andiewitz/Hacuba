@@ -1,6 +1,8 @@
 "use client";
 
-import { Heart } from "lucide-react";
+import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Bookmark } from "lucide-react";
 import Image from "next/image";
 
 interface PropertyCardProps {
@@ -24,6 +26,15 @@ export default function PropertyCard({
   isGuestFavorite = false,
   priority = false,
 }: PropertyCardProps) {
+  const [saved, setSaved] = useState(false);
+  const [splashKey, setSplashKey] = useState(0);
+  const reduce = useReducedMotion();
+
+  const toggleSaved = () => {
+    if (!saved) setSplashKey((k) => k + 1);
+    setSaved((v) => !v);
+  };
+
   return (
     <div className="group flex flex-col gap-2">
       <div className="relative aspect-square overflow-hidden rounded-[14px]">
@@ -42,12 +53,32 @@ export default function PropertyCard({
           </span>
         )}
 
-        <button
-          className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-card/80 text-foreground backdrop-blur-sm transition-colors hover:bg-card"
-          aria-label="Save to favorites"
+        <motion.button
+          onClick={toggleSaved}
+          aria-pressed={saved}
+          aria-label={saved ? "Remove from saved homes" : "Save this home"}
+          whileTap={{ transform: "scale(0.8)" }}
+          transition={{ duration: 0.12 }}
+          className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
         >
-          <Heart className="h-4 w-4" />
-        </button>
+          <AnimatePresence>
+            {!reduce && splashKey > 0 && (
+              <motion.span
+                key={splashKey}
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 rounded-full border-2 border-amber-300"
+                initial={{ opacity: 0.8, transform: "scale(0.6)" }}
+                animate={{ opacity: 0, transform: "scale(1.8)" }}
+                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+              />
+            )}
+          </AnimatePresence>
+          <Bookmark
+            className={`h-5 w-5 transition-colors duration-150 ${
+              saved ? "fill-amber-400 text-amber-400" : "text-white"
+            }`}
+          />
+        </motion.button>
       </div>
 
       <div className="flex flex-col gap-0.5 px-0.5">
