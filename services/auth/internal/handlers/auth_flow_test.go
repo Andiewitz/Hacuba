@@ -1,5 +1,10 @@
 package handlers
 
+// Unit-level flow coverage for register/login/me. Router-level contract
+// (status codes, cookie flags, rate limits, full mux wiring) lives in
+// internal/server/router_test.go through server.NewMux — the same
+// constructor cmd/server uses, so the two can never drift.
+
 import (
 	"bytes"
 	"encoding/json"
