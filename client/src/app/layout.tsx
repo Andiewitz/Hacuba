@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Figtree, Inter } from "next/font/google";
 import StoreProvider from "@/lib/store-provider";
+import Navbar from "@/components/navbar";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -30,7 +31,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${figtree.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <StoreProvider>{children}</StoreProvider>
+        <StoreProvider>
+          <Navbar />
+          {children}
+        </StoreProvider>
       </body>
     </html>
   );

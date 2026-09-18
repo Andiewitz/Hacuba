@@ -1,4 +1,3 @@
-import Navbar from "@/components/navbar";
 import SearchBar from "@/components/search-bar";
 import ListingSection from "@/components/listing-section";
 import {
@@ -16,7 +15,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
 
       <section className="px-6 pt-6 pb-4 md:px-10 lg:px-20">
         <SearchBar />

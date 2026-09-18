@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Navbar from "@/components/navbar";
 
 const faqs = [
   {
@@ -19,7 +18,6 @@ const faqs = [
 export default function HelpPage() {
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
       <main className="mx-auto max-w-3xl px-6 pt-12 pb-24 md:px-10">
         <p className="text-sm font-semibold text-muted-foreground">
           Help center

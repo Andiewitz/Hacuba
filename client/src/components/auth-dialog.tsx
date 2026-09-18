@@ -47,14 +47,12 @@ export default function AuthDialog({
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-  const [googleNotice, setGoogleNotice] = useState<string | null>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
   const loading = status === "loading";
 
   const resetAndClose = useCallback(() => {
     setEmailError(null);
-    setGoogleNotice(null);
     setPassword("");
     setEmailCommitted(null);
     dispatch(authErrorCleared());
@@ -129,19 +127,17 @@ export default function AuthDialog({
 
             <button
               type="button"
-              onClick={() =>
-                setGoogleNotice("Google sign-in isn't available yet.")
-              }
-              className="mt-6 flex h-11 w-full items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-semibold transition-colors hover:shadow-md"
+              disabled
+              aria-disabled="true"
+              title="Coming soon"
+              className="mt-6 flex h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-semibold opacity-60"
             >
               <GoogleMark />
               Continue with Google
             </button>
-            {googleNotice && (
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                {googleNotice}
-              </p>
-            )}
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Google sign-in is coming soon.
+            </p>
 
             <div className="my-6 flex items-center gap-3">
               <span className="h-px flex-1 bg-border" />
