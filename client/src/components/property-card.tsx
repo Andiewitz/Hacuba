@@ -59,25 +59,34 @@ export default function PropertyCard({
           aria-label={saved ? "Remove from saved homes" : "Save this home"}
           whileTap={{ transform: "scale(0.8)" }}
           transition={{ duration: 0.12 }}
-          className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+          className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.9)] drop-shadow-[0_1px_4px_rgba(0,0,0,0.7)]"
         >
           <AnimatePresence>
             {!reduce && splashKey > 0 && (
               <motion.span
                 key={splashKey}
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-0 rounded-full border-2 border-amber-300"
-                initial={{ opacity: 0.8, transform: "scale(0.6)" }}
-                animate={{ opacity: 0, transform: "scale(1.8)" }}
-                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+                className="pointer-events-none absolute inset-0 rounded-full border-[3px] border-amber-300"
+                initial={{ opacity: 0.9, transform: "scale(0.5)" }}
+                animate={{ opacity: 0, transform: "scale(2.2)" }}
+                transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
               />
             )}
           </AnimatePresence>
-          <Bookmark
-            className={`h-5 w-5 transition-colors duration-150 ${
-              saved ? "fill-amber-400 text-amber-400" : "text-white"
-            }`}
-          />
+          <motion.span
+            key={saved ? "saved" : "unsaved"}
+            aria-hidden="true"
+            className="flex"
+            initial={saved ? { transform: "scale(0.6)" } : false}
+            animate={{ transform: "scale(1)" }}
+            transition={{ type: "spring", stiffness: 500, damping: 18 }}
+          >
+            <Bookmark
+              className={`h-5 w-5 transition-colors duration-150 ${
+                saved ? "fill-amber-400 text-amber-400" : "text-white"
+              }`}
+            />
+          </motion.span>
         </motion.button>
       </div>
 
