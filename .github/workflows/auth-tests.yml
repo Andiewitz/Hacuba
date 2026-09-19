@@ -70,6 +70,22 @@ jobs:
         working-directory: services/auth
     steps:
       - uses: actions/checkout@v4
+      - name: validate compose DSN
+        env:
+          DB_PASSWORD: smoke-test-pw
+          JWT_SECRET: smoke-test-secret-must-be-32-bytes-minimum!!
+          COOKIE_SECURE: "false"
+          PORT: "8080"
+        run: |
+          DSN=$(docker compose config | awk '/DATABASE_URL:/ {print $2}')
+          python3 - "$DSN" <<'EOF'
+          import sys, urllib.parse
+          u = urllib.parse.urlparse(sys.argv[1])
+          assert u.hostname == "auth-db", u.hostname
+          assert u.port == 5432, u.port
+          assert u.username == "auth_service", u.username
+          print("DSN ok:", u.hostname, u.port, u.username)
+          EOF
       - name: bring up isolated stack
         env:
           DB_PASSWORD: smoke-test-pw
