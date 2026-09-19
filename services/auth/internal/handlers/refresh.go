@@ -16,7 +16,9 @@ import (
 // Server: validate CSRF double-submit -> lookup session by token hash ->
 // check expiry -> ROTATE (delete old session, create new one) -> issue new
 // access JWT + refresh/CSRF pair. Rotation means a stolen refresh token is
-// only usable once — reuse is detectable and revokes the session chain.
+// only usable once — a replayed old token finds no session and fails closed
+// with 401. There is no session-family tracking, so replay does not revoke
+// the legitimate rotated session.
 func Refresh(cfg config.Config, store users.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		refreshCookie, err := r.Cookie(refreshCookieName)
