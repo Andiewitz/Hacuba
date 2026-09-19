@@ -11,7 +11,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://auth_service:${DB_PASSWORD:?set DB_PASSWORD}/auth-db:5432/auth?sslmode=disable
+      DATABASE_URL: postgres://auth_service:${DB_PASSWORD:?set DB_PASSWORD}@auth-db:5432/auth?sslmode=disable
     depends_on:
       auth-db:
         condition: service_healthy
