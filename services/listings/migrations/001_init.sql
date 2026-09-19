@@ -66,7 +66,9 @@ CREATE TABLE IF NOT EXISTS listing_images (
     alt TEXT,
     content_type TEXT NOT NULL,
     byte_size BIGINT NOT NULL CHECK (byte_size > 0),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- One image per slot: positions order the gallery deterministically.
+    UNIQUE (listing_id, position)
 );
 
 CREATE INDEX IF NOT EXISTS idx_listing_images_listing_id ON listing_images (listing_id, position);
