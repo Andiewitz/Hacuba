@@ -49,6 +49,12 @@ func (l *loginLimiter) reset(key string) {
 	delete(l.failures, key)
 }
 
+// dummyPasswordHash is a cost-12 bcrypt hash of a random password nobody
+// knows. Comparing against it on unknown emails costs the same as a real
+// password check, so the generic 401 below does not leak account existence
+// through timing.
+const dummyPasswordHash = "$2a$12$X2Z2hxRKLbN9xZTVlwdauOB8BfYId1bTUEi.sDDtaijtHeDddWhFO"
+
 // Login handles POST /auth/login.
 //
 // Flow: rate-limit -> lookup by email -> bcrypt compare (constant-time) ->
@@ -78,6 +84,9 @@ func Login(cfg config.Config, store users.Store) http.HandlerFunc {
 		user, err := store.GetUserByEmail(r.Context(), email)
 		if err != nil {
 			if errors.Is(err, users.ErrNotFound) {
+				// Burn the same bcrypt cost as a real check so unknown emails
+				// do not return measurably faster (see dummyPasswordHash).
+				_ = bcrypt.CompareHashAndPassword([]byte(dummyPasswordHash), []byte(req.Password))
 				limiter.recordFailure(email)
 				writeError(w, http.StatusUnauthorized, "invalid credentials")
 				return
