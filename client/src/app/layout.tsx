@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Figtree, Inter } from "next/font/google";
 import StoreProvider from "@/lib/store-provider";
 import Navbar from "@/components/navbar";
+import Footer from "@/components/footer";
 import "./globals.css";
 
 const figtree = Figtree({
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <StoreProvider>
           <Navbar />
           {children}
+          <Footer />
         </StoreProvider>
       </body>
     </html>

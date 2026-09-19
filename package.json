@@ -8,6 +8,7 @@
     "build": "npm run build --workspace client",
     "start": "npm run start --workspace client",
     "lint": "npm run lint --workspace client",
+    "lint:ox": "npm run lint:ox --workspace client",
     "typecheck": "npm run typecheck --workspace client"
   }
 }
