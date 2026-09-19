@@ -82,3 +82,22 @@ services/listings/
   accepted at this scale, to be documented in `docs/`.
 - Thumbnails (Lambda vs on-the-fly) deferred; serve originals first.
 - Buyer→seller contact/inquiry flow is a separate feature, not in this plan.
+
+## Test-plan resolutions (agreed on approval)
+
+- Audit regressions for already-fixed findings (B1 DSN, B2 startup guard,
+  B3 comment, M4 dummy hash) are written as passing guards, not
+  failing-first. B3 replay-closed and M4 identical-401 behavior were
+  already pinned by `TestRefreshRotatesSingleUse` and
+  `TestLoginEnumerationParity`; B2 is pinned by a binary-exec test in
+  `services/auth/cmd/server`, B1 by a compose-DSN check in CI.
+- M1/M2/M3/M5/M6 regression tests **and** fixes ride with build step 2
+  (auth role change), per the test plan's implementation order — not here.
+- The §5a Go-level cross-service contract test is dropped as
+  unimplementable (`internal/` is unimportable across modules). The
+  auth→listings handshake is covered by unit tests inside the shared
+  `authjwt` package plus the live compose smoke test.
+- `listing_images` enforces `UNIQUE (listing_id, position)` so gallery
+  order is deterministic and the constraint test in §4.2 has a real
+  target.
+- Statistical timing-parity test for login stays `-short`-skippable (step 2).
