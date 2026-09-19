@@ -25,6 +25,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("auth: invalid config: %v", err)
 	}
+	// The server binary is the production artifact: refuse to boot on the
+	// dev-only secret fallback or without a database. Tests never exec
+	// main, so `go test` without env keeps working.
+	if err := cfg.EnsureProdReady(); err != nil {
+		log.Fatalf("auth: not production-ready: %v", err)
+	}
 
 	store, err := newStore(cfg)
 	if err != nil {
