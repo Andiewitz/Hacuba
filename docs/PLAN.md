@@ -131,6 +131,12 @@ before the next depends on it.
 
 ## Phase 5 — Client API and property presentation
 
+**Status: implemented for public browse and property presentation.** The
+client uses typed public-listing DTOs, reads `LISTINGS_API_URL` when it is
+configured, and uses a typed local catalogue only for development without a
+listings service. `LISTINGS_IMAGE_BASE_URL` supplies public image URLs for
+stored object keys.
+
 - Replace `client/src/data/listings.ts` mock rental data with shared TypeScript
   listing DTOs and a server-side listings API client.
 - Update cards to use stable listing IDs; display property type, mode badge,
@@ -150,6 +156,12 @@ before the next depends on it.
 - Use a mocked listings API to test loading, API error, and empty states.
 
 ## Phase 6 — Search and seller experience
+
+**Status: seller workspace UI started; service mutations remain pending.**
+The browse search writes validated filter query parameters and category pages
+read the same filter shape. The seller page provides the draft authoring UI;
+its save, publish, and image actions will connect to the route handlers in
+this phase.
 
 - Make the search controls write validated `city`, `min_price`, `max_price`,
   `type`, and `mode` query parameters with `next/navigation`; pages read those

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const destinations = [
   { name: "Cebu City, Philippines", description: "For sights like Magellan's Cross" },
@@ -13,11 +14,11 @@ const destinations = [
 ];
 
 const priceRanges = [
-  "Any price",
-  "₱1,000 – ₱2,500",
-  "₱2,500 – ₱5,000",
-  "₱5,000 – ₱10,000",
-  "₱10,000+",
+  { label: "Any price" },
+  { label: "Under ₱3M", maxPrice: 300_000_000 },
+  { label: "₱3M – ₱6M", minPrice: 300_000_000, maxPrice: 600_000_000 },
+  { label: "₱6M – ₱10M", minPrice: 600_000_000, maxPrice: 1_000_000_000 },
+  { label: "₱10M+", minPrice: 1_000_000_000 },
 ];
 
 const propertyTypes = [
@@ -30,9 +31,10 @@ const propertyTypes = [
 ];
 
 export default function SearchBar() {
+  const router = useRouter();
   const [activeSegment, setActiveSegment] = useState<string | null>(null);
   const [where, setWhere] = useState("");
-  const [price, setPrice] = useState(priceRanges[0]);
+  const [price, setPrice] = useState(priceRanges[0].label);
   const [propertyType, setPropertyType] = useState("Any type");
   const [searchQuery, setSearchQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,6 +75,19 @@ export default function SearchBar() {
     exit: { opacity: 0, y: -6, scale: 0.97, transition: { duration: 0.12, ease: "easeIn" as const } },
   };
 
+  const applyFilters = () => {
+    const params = new URLSearchParams();
+    const selectedPrice = priceRanges.find((range) => range.label === price);
+
+    if (where) params.set("city", where.split(",")[0]);
+    if (propertyType !== "Any type") params.set("type", propertyType.toLowerCase());
+    if (selectedPrice?.minPrice !== undefined) params.set("min_price", String(selectedPrice.minPrice));
+    if (selectedPrice?.maxPrice !== undefined) params.set("max_price", String(selectedPrice.maxPrice));
+
+    router.push(`/?${params.toString()}`);
+    setActiveSegment(null);
+  };
+
   return (
     <div ref={containerRef} className="relative mx-auto w-full max-w-3xl">
       <div className="relative flex items-center rounded-full border border-border bg-muted/50 shadow-md transition-shadow hover:shadow-lg">
@@ -84,7 +99,7 @@ export default function SearchBar() {
           {activeSegment === "where" && (
             <motion.div
               layoutId="segment-pill"
-              className="absolute inset-0 rounded-full bg-white shadow-md"
+              className="absolute inset-0 rounded-full bg-card shadow-[var(--shadow-md)]"
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             />
           )}
@@ -104,7 +119,7 @@ export default function SearchBar() {
           {activeSegment === "price" && (
             <motion.div
               layoutId="segment-pill"
-              className="absolute inset-0 rounded-full bg-white shadow-md"
+              className="absolute inset-0 rounded-full bg-card shadow-[var(--shadow-md)]"
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             />
           )}
@@ -122,7 +137,7 @@ export default function SearchBar() {
           {activeSegment === "type" && (
             <motion.div
               layoutId="segment-pill"
-              className="absolute inset-0 rounded-full bg-white shadow-md"
+              className="absolute inset-0 rounded-full bg-card shadow-[var(--shadow-md)]"
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             />
           )}
@@ -130,7 +145,12 @@ export default function SearchBar() {
           <span className="relative block text-sm text-muted-foreground">{propertyType}</span>
         </button>
 
-        <button className="relative z-10 mr-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90">
+        <button
+          type="button"
+          onClick={applyFilters}
+          aria-label="Search properties"
+          className="relative z-10 mr-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary text-[var(--color-forest)] transition-colors hover:bg-[var(--color-terracotta-hover)]"
+        >
           <Search className="h-4 w-4" />
         </button>
       </div>
@@ -204,17 +224,17 @@ export default function SearchBar() {
           >
             {priceRanges.map((range, i) => (
               <motion.button
-                key={range}
+                key={range.label}
                 initial={{ opacity: 0, y: -4 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03, duration: 0.15 }}
                 onClick={() => {
-                  setPrice(range);
+                  setPrice(range.label);
                   setActiveSegment(null);
                 }}
                 className="relative flex w-full items-center rounded-xl px-4 py-3 text-sm text-left transition-colors hover:bg-muted"
               >
-                {price === range && (
+                {price === range.label && (
                   <motion.div
                     layoutId="price-highlight"
                     className="absolute inset-0 rounded-xl bg-accent/20"
@@ -223,10 +243,10 @@ export default function SearchBar() {
                 )}
                 <span
                   className={`relative ${
-                    price === range ? "font-semibold text-foreground" : "text-muted-foreground"
+                    price === range.label ? "font-semibold text-foreground" : "text-muted-foreground"
                   }`}
                 >
-                  {range}
+                  {range.label}
                 </span>
               </motion.button>
             ))}

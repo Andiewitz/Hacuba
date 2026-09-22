@@ -101,9 +101,12 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <button className="hidden lg:flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:shadow-md">
+          <Link
+            href="/seller"
+            className="hidden lg:flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:shadow-[var(--shadow-md)]"
+          >
             Become a seller
-          </button>
+          </Link>
           <button className="flex items-center justify-center rounded-full border border-border p-2.5 text-foreground transition-colors hover:shadow-md">
             <Globe className="h-4 w-4" />
           </button>

@@ -1,13 +1,12 @@
 "use client";
 
 import PropertyCard from "@/components/property-card";
-import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
-import type { Listing } from "@/data/listings";
+import type { ListingCardData } from "@/lib/listings";
 
 interface ListingSectionProps {
   title: string;
-  listings: Listing[];
+  listings: ListingCardData[];
   sectionIndex?: number;
 }
 
@@ -24,18 +23,23 @@ export default function ListingSection({
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-50px" }}
           transition={{ duration: 0.4, delay: sectionIndex * 0.1 }}
-          className="flex items-center gap-3 mb-6"
+          className="mb-6"
         >
-          <h2 className="text-2xl font-semibold text-foreground font-heading">
+          <h2 className="font-heading text-[2.25rem] font-semibold leading-[1.2] tracking-[-0.01em] text-foreground">
             {title}
           </h2>
-          <ArrowRight className="h-5 w-5 text-foreground" />
         </motion.div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-          {listings.map((listing, index) => (
+        {listings.length === 0 ? (
+          <div className="rounded-[var(--radius-lg)] border border-border bg-card px-6 py-12 text-center shadow-[var(--shadow-sm)]">
+            <p className="font-heading text-[1.375rem] font-medium text-foreground">No properties match these filters</p>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">Try a different location, price range, or property type.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {listings.map((listing, index) => (
             <motion.div
-              key={`${listing.type}-${listing.location}-${sectionIndex}-${index}`}
+              key={listing.id}
               initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-30px" }}
@@ -46,8 +50,9 @@ export default function ListingSection({
                 priority={sectionIndex === 0 && index === 0}
               />
             </motion.div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

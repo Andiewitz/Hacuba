@@ -1,33 +1,22 @@
-import SearchBar from "@/components/search-bar";
 import ListingSection from "@/components/listing-section";
-import {
-  getListingsByType,
-  getNewListings,
-  getAvailableNextMonth,
-  nearbyAreas,
-} from "@/data/listings";
+import SearchBar from "@/components/search-bar";
+import { listingFiltersFromSearchParams } from "@/lib/listing-filters";
+import { getPublicListings } from "@/lib/listings";
 
-export default function HomesPage() {
-  const newListings = getNewListings("House");
-  const listings = getListingsByType("House");
-  const nextMonth = getAvailableNextMonth("House");
+type HomesPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function HomesPage({ searchParams }: HomesPageProps) {
+  const filters = listingFiltersFromSearchParams(await searchParams);
+  const listings = await getPublicListings({ ...filters, propertyType: filters.propertyType ?? "house" });
 
   return (
-    <div className="min-h-screen bg-background">
-      <section className="px-6 pt-6 pb-4 md:px-10 lg:px-20">
+    <main className="min-h-screen bg-background pb-16">
+      <section className="px-6 pb-4 pt-6 md:px-10 lg:px-20">
         <SearchBar />
       </section>
-      <ListingSection title="New listings" listings={newListings} sectionIndex={0} />
-      <ListingSection title="Relevant homes in Cebu City" listings={listings} sectionIndex={1} />
-      {nearbyAreas.map((area, i) => (
-        <ListingSection
-          key={area}
-          title={`Available in ${area}`}
-          listings={listings.slice(i * 2, i * 2 + 4)}
-          sectionIndex={i + 2}
-        />
-      ))}
-      <ListingSection title="Available next month" listings={nextMonth} sectionIndex={nearbyAreas.length + 2} />
-    </div>
+      <ListingSection title="Homes in Cebu" listings={listings} sectionIndex={0} />
+    </main>
   );
 }

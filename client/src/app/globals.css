@@ -76,7 +76,7 @@
   --popover: var(--color-cream-surface);
   --popover-foreground: var(--color-forest);
   --primary: var(--color-terracotta);
-  --primary-foreground: #FFFFFF;
+  --primary-foreground: var(--color-forest);
   --secondary: var(--color-cream-surface);
   --secondary-foreground: var(--color-forest);
   --muted: var(--color-cream-surface);
@@ -111,7 +111,7 @@
   --popover: var(--color-forest-surface-2);
   --popover-foreground: var(--text-body-on-dark);
   --primary: var(--color-terracotta);
-  --primary-foreground: #FFFFFF;
+  --primary-foreground: var(--color-forest);
   --secondary: var(--color-forest-surface-1);
   --secondary-foreground: var(--text-body-on-dark);
   --muted: var(--color-forest-surface-1);
