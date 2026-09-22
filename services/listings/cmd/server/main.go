@@ -25,6 +25,14 @@ func main() {
 		}
 		defer postgres.Close()
 		store = postgres
+	} else if cfg.DevSQLitePath != "" {
+		sqlite, err := listings.NewSQLiteStore(context.Background(), cfg.DevSQLitePath)
+		if err != nil {
+			log.Fatalf("listings: development SQLite store: %v", err)
+		}
+		defer sqlite.Close()
+		store = sqlite
+		log.Printf("listings: DEV_SQLITE_PATH is set — using persistent development SQLite")
 	} else {
 		log.Print("listings: DATABASE_URL unset — using in-memory store (dev only)")
 	}
