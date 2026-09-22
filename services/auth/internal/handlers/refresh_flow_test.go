@@ -140,7 +140,7 @@ func TestRefreshExpiredSessionFailsAndClearsCookies(t *testing.T) {
 	refreshHash := tokens.HashToken(refreshRaw)
 
 	// Swap the live session for an expired one with identical hashes.
-	ctx :=	t.Context()
+	ctx := t.Context()
 	old, err := store.GetRefreshSessionByHash(ctx, refreshHash)
 	if err != nil {
 		t.Fatalf("lookup session: %v", err)

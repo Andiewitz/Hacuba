@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// openTestDB connects to a real Postgres, applies migrations/001_init.sql,
+// openTestDB connects to a real Postgres, applies the auth migrations,
 // and truncates tables. Skips when no DSN is set so unit runs stay hermetic:
 //
 //	TEST_DATABASE_URL=postgres://auth_service:pw@localhost:5432/auth?sslmode=disable go test ./...
@@ -40,13 +40,15 @@ func openTestDB(t *testing.T) *PostgresStore {
 		t.Skipf("postgres ping failed: %v", err)
 	}
 
-	migPath := filepath.Join("..", "..", "migrations", "001_init.sql")
-	sql, err := os.ReadFile(migPath)
-	if err != nil {
-		t.Fatalf("read migration: %v", err)
-	}
-	if _, err := pool.Exec(ctx, string(sql)); err != nil {
-		t.Fatalf("apply migration: %v", err)
+	for _, migration := range []string{"001_init.sql", "002_roles.sql"} {
+		migPath := filepath.Join("..", "..", "migrations", migration)
+		sql, err := os.ReadFile(migPath)
+		if err != nil {
+			t.Fatalf("read %s: %v", migration, err)
+		}
+		if _, err := pool.Exec(ctx, string(sql)); err != nil {
+			t.Fatalf("apply %s: %v", migration, err)
+		}
 	}
 	if _, err := pool.Exec(ctx, `TRUNCATE refresh_sessions, users CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
@@ -110,6 +112,9 @@ func TestPostgresUserRoundTrip(t *testing.T) {
 	}
 	if created.CreatedAt.IsZero() {
 		t.Error("expected created_at to be set")
+	}
+	if created.Role != RoleBuyer {
+		t.Errorf("new role = %q, want buyer", created.Role)
 	}
 
 	byEmail, err := store.GetUserByEmail(ctx, "PG-USER@Example.COM")

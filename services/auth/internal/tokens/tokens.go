@@ -8,65 +8,26 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/hacuba/authjwt"
 )
 
-const (
-	issuer   = "hacuba-auth"
-	audience = "hacuba-client"
-)
+// Claims is shared with services that verify Hacuba access tokens.
+type Claims = authjwt.Claims
 
-// Claims is the access-token payload. sub is the user's UUID — the only
-// identity the rest of the system trusts. csrf binds the token to one
-// CSRF secret (stored as a hash, never the raw value).
-type Claims struct {
-	jwt.RegisteredClaims
-	CSRFHash string `json:"csrf"`
-}
-
-// IssueAccess mints a short-lived JWT for userID, bound to csrfHash.
-func IssueAccess(secret []byte, userID uuid.UUID, csrfHash string, ttl time.Duration) (string, error) {
-	now := time.Now()
-	claims := Claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    issuer,
-			Audience:  jwt.ClaimStrings{audience},
-			Subject:   userID.String(),
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
-		},
-		CSRFHash: csrfHash,
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString(secret)
-	if err != nil {
-		return "", fmt.Errorf("sign access token: %w", err)
-	}
-	return signed, nil
+// IssueAccess mints a short-lived access token containing the caller's role.
+func IssueAccess(secret []byte, userID uuid.UUID, role, csrfHash string, ttl time.Duration) (string, error) {
+	return authjwt.IssueAccess(secret, userID, role, csrfHash, ttl)
 }
 
 // VerifyAccess checks signature, expiry, issuer/audience and returns the
 // caller UUID + bound CSRF hash. Any error means unauthenticated.
 func VerifyAccess(secret []byte, raw string) (uuid.UUID, string, error) {
-	var claims Claims
-	token, err := jwt.ParseWithClaims(raw, &claims, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method")
-		}
-		return secret, nil
-	},
-		jwt.WithIssuer(issuer),
-		jwt.WithAudience(audience),
-		jwt.WithExpirationRequired(),
-	)
+	claims, err := authjwt.VerifyAccess(secret, raw)
 	if err != nil {
-		return uuid.Nil, "", fmt.Errorf("invalid token: %w", err)
+		return uuid.Nil, "", err
 	}
-	if !token.Valid {
-		return uuid.Nil, "", fmt.Errorf("invalid token")
-	}
-	userID, err := uuid.Parse(claims.Subject)
+	userID, err := claims.UserID()
 	if err != nil {
 		return uuid.Nil, "", fmt.Errorf("invalid sub claim: %w", err)
 	}

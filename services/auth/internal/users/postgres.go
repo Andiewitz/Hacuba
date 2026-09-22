@@ -43,11 +43,11 @@ func (s *PostgresStore) Close() {
 func (s *PostgresStore) CreateUser(ctx context.Context, user User) (*User, error) {
 	row := s.pool.QueryRow(ctx,
 		`INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)
-		 RETURNING id, email, password_hash, created_at`,
+		 RETURNING id, email, password_hash, role, created_at`,
 		user.ID, user.Email, user.PasswordHash,
 	)
 	var created User
-	if err := row.Scan(&created.ID, &created.Email, &created.PasswordHash, &created.CreatedAt); err != nil {
+	if err := row.Scan(&created.ID, &created.Email, &created.PasswordHash, &created.Role, &created.CreatedAt); err != nil {
 		if isUniqueViolation(err) {
 			return nil, ErrEmailTaken
 		}
@@ -59,9 +59,9 @@ func (s *PostgresStore) CreateUser(ctx context.Context, user User) (*User, error
 func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, email, password_hash, created_at FROM users WHERE email = $1`,
+		`SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1`,
 		NormalizeEmail(email),
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt)
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -74,14 +74,29 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*User
 func (s *PostgresStore) GetUserByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var u User
 	err := s.pool.QueryRow(ctx,
-		`SELECT id, email, password_hash, created_at FROM users WHERE id = $1`,
+		`SELECT id, email, password_hash, role, created_at FROM users WHERE id = $1`,
 		id,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.CreatedAt)
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("get user by id: %w", err)
+	}
+	return &u, nil
+}
+
+func (s *PostgresStore) BecomeSeller(ctx context.Context, id uuid.UUID) (*User, error) {
+	var u User
+	err := s.pool.QueryRow(ctx,
+		`UPDATE users SET role = 'seller' WHERE id = $1
+		 RETURNING id, email, password_hash, role, created_at`, id,
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.Role, &u.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("become seller: %w", err)
 	}
 	return &u, nil
 }
@@ -119,6 +134,33 @@ func (s *PostgresStore) DeleteRefreshSessionByHash(ctx context.Context, tokenHas
 		`DELETE FROM refresh_sessions WHERE token_hash = $1`, tokenHash)
 	if err != nil {
 		return fmt.Errorf("delete refresh session: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresStore) RotateRefreshSession(ctx context.Context, oldHash string, next RefreshSession) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin refresh rotation: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	var consumed uuid.UUID
+	if err := tx.QueryRow(ctx, `DELETE FROM refresh_sessions WHERE token_hash = $1 RETURNING id`, oldHash).Scan(&consumed); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotFound
+		}
+		return fmt.Errorf("consume refresh session: %w", err)
+	}
+	if _, err := tx.Exec(ctx,
+		`INSERT INTO refresh_sessions (id, user_id, token_hash, csrf_hash, expires_at)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		next.ID, next.UserID, next.TokenHash, next.CSRFHash, next.ExpiresAt,
+	); err != nil {
+		return fmt.Errorf("create rotated refresh session: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit refresh rotation: %w", err)
 	}
 	return nil
 }

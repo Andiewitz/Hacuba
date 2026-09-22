@@ -31,9 +31,22 @@ func (m *MemoryStore) CreateUser(_ context.Context, user User) (*User, error) {
 	if _, exists := m.byEmail[user.Email]; exists {
 		return nil, ErrEmailTaken
 	}
+	user.Role = NormalizeRole(user.Role)
 	m.byID[user.ID] = user
 	m.byEmail[user.Email] = user.ID
 	u := user
+	return &u, nil
+}
+
+func (m *MemoryStore) BecomeSeller(_ context.Context, id uuid.UUID) (*User, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	u, ok := m.byID[id]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	u.Role = RoleSeller
+	m.byID[id] = u
 	return &u, nil
 }
 
@@ -79,6 +92,17 @@ func (m *MemoryStore) DeleteRefreshSessionByHash(_ context.Context, tokenHash st
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.sessions, tokenHash)
+	return nil
+}
+
+func (m *MemoryStore) RotateRefreshSession(_ context.Context, oldHash string, next RefreshSession) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, ok := m.sessions[oldHash]; !ok {
+		return ErrNotFound
+	}
+	delete(m.sessions, oldHash)
+	m.sessions[next.TokenHash] = next
 	return nil
 }
 

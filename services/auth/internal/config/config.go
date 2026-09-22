@@ -48,23 +48,29 @@ func Load() (Config, error) {
 
 	accessTTL := 15 * time.Minute
 	if v := os.Getenv("ACCESS_TTL"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			accessTTL = d
+		d, err := time.ParseDuration(v)
+		if err != nil || d <= 0 {
+			return Config{}, fmt.Errorf("ACCESS_TTL must be a positive duration")
 		}
+		accessTTL = d
 	}
 
 	refreshTTL := 7 * 24 * time.Hour
 	if v := os.Getenv("REFRESH_TTL"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			refreshTTL = d
+		d, err := time.ParseDuration(v)
+		if err != nil || d <= 0 {
+			return Config{}, fmt.Errorf("REFRESH_TTL must be a positive duration")
 		}
+		refreshTTL = d
 	}
 
 	secure := true
 	if v := os.Getenv("COOKIE_SECURE"); v != "" {
-		if b, err := strconv.ParseBool(v); err == nil {
-			secure = b
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return Config{}, fmt.Errorf("COOKIE_SECURE must be true or false")
 		}
+		secure = b
 	}
 
 	return Config{

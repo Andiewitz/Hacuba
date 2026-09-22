@@ -33,6 +33,9 @@ func NewMux(cfg config.Config, store users.Store) http.Handler {
 	// Authenticated: Bearer JWT -> context UUID -> own row only.
 	me := middleware.Authenticate(cfg.JWTSecret, store, handlers.Me(store))
 	mux.Handle("GET /auth/me", me)
+	becomeSeller := middleware.Authenticate(cfg.JWTSecret, store,
+		middleware.RequireCSRF(handlers.BecomeSeller(cfg, store)))
+	mux.Handle("POST /auth/become-seller", becomeSeller)
 
 	return withSecurityHeaders(mux)
 }

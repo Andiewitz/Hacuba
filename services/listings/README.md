@@ -6,8 +6,9 @@ Postgres** (`listings-db`) on an internal Docker network — same isolation
 rule as `auth-db`. Users live in `auth-db`, so listings reference sellers
 by UUID only (`owner_id`, no FK); identity always comes from the JWT `sub`.
 
-Status: domain + migration only (build-order step 1). Service skeleton,
-auth `role` migration, and shared JWT package land in steps 2–4.
+Status: domain, auth boundary, Postgres store, Compose stack, and public/seller
+listing routes are implemented. S3 image upload, Redis detail caching,
+Terraform, and client integration remain later build steps.
 
 ## Domain model
 
@@ -49,7 +50,19 @@ The old client `Listing` type (`nights`, `rating`, `isGuestFavorite`,
 "Available next month" has no meaning for sales — still open whether it
 becomes "Recently reduced" or is dropped.
 
-## Search (planned)
+## API (implemented against the store interface)
+
+Public routes are `GET /healthz`, `GET /listings`, and
+`GET /listings/{id}`. Browse accepts `mode`, `type`, `city`, `barangay`,
+`min_price`, `max_price`, `beds`, `q`, `sort`, `cursor`, and `limit`.
+
+Seller routes require a verified `role=seller` JWT; writes also require the
+CSRF cookie/header pair: `POST /listings`, `PATCH /listings/{id}`,
+`POST /listings/{id}/publish`, `/unpublish`, `/close`, `DELETE /listings/{id}`
+and `GET /me/listings`. All cross-owner access is a 404. Publishing returns a
+400 with all missing fields and leaves the draft unchanged.
+
+## Search (planned for Postgres)
 
 Plain Postgres: btree on `(status, property_type, city, price_centavos)`
 (already in `001_init.sql`), `pg_trgm` for free-text "Where" in a later

@@ -118,15 +118,15 @@ func TestMalformedBodiesAre400Never500(t *testing.T) {
 	store := users.NewMemoryStore()
 
 	bodies := map[string]string{
-		"empty":        "",
-		"not json":     "hello",
-		"array":        `["a","b"]`,
-		"number":       `42`,
-		"wrong types":  `{"email":123,"password":true}`,
-		"null":         `null`,
-		"missing all":  `{}`,
-		"huge email":   `{"email":"` + strings.Repeat("a", 500) + `@example.com","password":"validpassword123"}`,
-		"huge pw":      `{"email":"` + uniqueTestEmail("huge") + `","password":"` + strings.Repeat("x", 5000) + `1"}`,
+		"empty":         "",
+		"not json":      "hello",
+		"array":         `["a","b"]`,
+		"number":        `42`,
+		"wrong types":   `{"email":123,"password":true}`,
+		"null":          `null`,
+		"missing all":   `{}`,
+		"huge email":    `{"email":"` + strings.Repeat("a", 500) + `@example.com","password":"validpassword123"}`,
+		"huge pw":       `{"email":"` + uniqueTestEmail("huge") + `","password":"` + strings.Repeat("x", 5000) + `1"}`,
 		"trailing junk": `{"email":"a@example.com"} garbage`,
 	}
 	for name, body := range bodies {

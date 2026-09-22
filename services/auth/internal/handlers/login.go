@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"sync"
@@ -22,25 +21,41 @@ type loginLimiter struct {
 
 var limiter = &loginLimiter{failures: make(map[string][]time.Time)}
 
+const maxTrackedLoginEmails = 10_000
+
 func (l *loginLimiter) blocked(key string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	now := time.Now()
 	cutoff := now.Add(-15 * time.Minute)
-	kept := l.failures[key][:0]
-	for _, t := range l.failures[key] {
-		if t.After(cutoff) {
-			kept = append(kept, t)
-		}
-	}
-	l.failures[key] = kept
-	return len(kept) >= 5
+	l.pruneExpired(cutoff)
+	return len(l.failures[key]) >= 5
 }
 
 func (l *loginLimiter) recordFailure(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.pruneExpired(time.Now().Add(-15 * time.Minute))
+	if _, exists := l.failures[key]; !exists && len(l.failures) >= maxTrackedLoginEmails {
+		return
+	}
 	l.failures[key] = append(l.failures[key], time.Now())
+}
+
+func (l *loginLimiter) pruneExpired(cutoff time.Time) {
+	for key, failures := range l.failures {
+		kept := failures[:0]
+		for _, failedAt := range failures {
+			if failedAt.After(cutoff) {
+				kept = append(kept, failedAt)
+			}
+		}
+		if len(kept) == 0 {
+			delete(l.failures, key)
+			continue
+		}
+		l.failures[key] = kept
+	}
 }
 
 func (l *loginLimiter) reset(key string) {
@@ -66,8 +81,7 @@ func Login(cfg config.Config, store users.Store) http.HandlerFunc {
 			Email    string `json:"email"`
 			Password string `json:"password"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid JSON body")
+		if err := decodeJSONBody(w, r, &req); err != nil {
 			return
 		}
 

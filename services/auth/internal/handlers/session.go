@@ -16,10 +16,10 @@ import (
 // The access token lives in memory on the frontend (never localStorage).
 // Refresh + CSRF also arrive as cookies (see setSessionCookies).
 type SessionResponse struct {
-	AccessToken string    `json:"access_token"`
-	CSRFToken   string    `json:"csrf_token"`
-	TokenType   string    `json:"token_type"`
-	ExpiresIn   int       `json:"expires_in"`
+	AccessToken string     `json:"access_token"`
+	CSRFToken   string     `json:"csrf_token"`
+	TokenType   string     `json:"token_type"`
+	ExpiresIn   int        `json:"expires_in"`
 	User        UserPublic `json:"user"`
 }
 
@@ -27,11 +27,12 @@ type SessionResponse struct {
 type UserPublic struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
+	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 func publicUser(u *users.User) UserPublic {
-	return UserPublic{ID: u.ID, Email: u.Email, CreatedAt: u.CreatedAt}
+	return UserPublic{ID: u.ID, Email: u.Email, Role: u.Role, CreatedAt: u.CreatedAt}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -46,19 +47,24 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 
 // issueSession creates a refresh session + CSRF pair, persists only hashes,
 // sets cookies, and returns the client-facing session payload.
-func issueSession(ctx context.Context, w http.ResponseWriter, cfg config.Config, store users.Store, user *users.User) (SessionResponse, error) {
+type pendingSession struct {
+	SessionResponse
+	refreshRaw string
+}
+
+func newSession(cfg config.Config, user *users.User) (pendingSession, users.RefreshSession, error) {
 	refreshRaw, refreshHash, err := tokens.NewOpaqueToken()
 	if err != nil {
-		return SessionResponse{}, err
+		return pendingSession{}, users.RefreshSession{}, err
 	}
 	csrfRaw, csrfHash, err := tokens.NewOpaqueToken()
 	if err != nil {
-		return SessionResponse{}, err
+		return pendingSession{}, users.RefreshSession{}, err
 	}
 
 	sessID, err := uuid.NewV7()
 	if err != nil {
-		return SessionResponse{}, err
+		return pendingSession{}, users.RefreshSession{}, err
 	}
 	sess := users.RefreshSession{
 		ID:        sessID,
@@ -67,24 +73,28 @@ func issueSession(ctx context.Context, w http.ResponseWriter, cfg config.Config,
 		CSRFHash:  csrfHash,
 		ExpiresAt: time.Now().Add(cfg.RefreshTTL),
 	}
-	// Pass request-scoped ctx in callers; background here keeps helper simple
-	// for register/login which already validated input.
-	if err := store.CreateRefreshSession(ctx, sess); err != nil {
-		return SessionResponse{}, err
-	}
-
-	access, err := tokens.IssueAccess(cfg.JWTSecret, user.ID, csrfHash, cfg.AccessTTL)
+	access, err := tokens.IssueAccess(cfg.JWTSecret, user.ID, user.Role, csrfHash, cfg.AccessTTL)
 	if err != nil {
-		return SessionResponse{}, err
+		return pendingSession{}, users.RefreshSession{}, err
 	}
 
-	setSessionCookies(w, cfg, refreshRaw, csrfRaw, cfg.RefreshTTL)
-
-	return SessionResponse{
+	return pendingSession{SessionResponse: SessionResponse{
 		AccessToken: access,
 		CSRFToken:   csrfRaw,
 		TokenType:   "Bearer",
 		ExpiresIn:   int(cfg.AccessTTL.Seconds()),
 		User:        publicUser(user),
-	}, nil
+	}, refreshRaw: refreshRaw}, sess, nil
+}
+
+func issueSession(ctx context.Context, w http.ResponseWriter, cfg config.Config, store users.Store, user *users.User) (SessionResponse, error) {
+	pending, sess, err := newSession(cfg, user)
+	if err != nil {
+		return SessionResponse{}, err
+	}
+	if err := store.CreateRefreshSession(ctx, sess); err != nil {
+		return SessionResponse{}, err
+	}
+	setSessionCookies(w, cfg, pending.refreshRaw, pending.CSRFToken, cfg.RefreshTTL)
+	return pending.SessionResponse, nil
 }

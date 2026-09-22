@@ -33,7 +33,10 @@ services/auth/
 - **Identity:** UUIDv7 per user, generated in Go. Used as Postgres PK,
   JWT `sub`, and `owner_id` FK everywhere else.
 - **Passwords:** bcrypt cost 12, never returned by the API.
-- **Access JWT (15m):** `sub=user UUID`, `csrf` hash binding, `HS256`.
+- **Access JWT (15m):** `sub=user UUID`, `role`, and `csrf` hash binding,
+  signed with `HS256`. Listings verifies the same claim with the shared
+  `authjwt` module; deleted or demoted accounts can retain access there for
+  at most the access-token lifetime.
   Frontend keeps it in memory (not localStorage), sends as
   `Authorization: Bearer <jwt>`.
 - **Refresh (7d):** 32-byte opaque token in `HttpOnly; Secure; SameSite=Lax`
@@ -71,7 +74,8 @@ only). Production Compose always sets it to the internal `auth-db`.
 | POST | /auth/login | no | 401 generic, 429 after 5 fails/15m |
 | POST | /auth/refresh | refresh cookie + CSRF | rotates session |
 | POST | /auth/logout | refresh cookie | 204, clears cookies |
-| GET | /auth/me | Bearer JWT | own `{id,email,created_at}` only |
+| POST | /auth/become-seller | Bearer JWT + CSRF | idempotently upgrades role and returns a fresh session |
+| GET | /auth/me | Bearer JWT | own `{id,email,role,created_at}` only |
 | GET | /healthz | no | liveness |
 
 ## Verify

@@ -40,9 +40,13 @@ type Store interface {
 	// GetUserByID returns only the user matching id — the caller passes
 	// the JWT sub, so a user can only ever load their own row.
 	GetUserByID(ctx context.Context, id uuid.UUID) (*User, error)
+	BecomeSeller(ctx context.Context, id uuid.UUID) (*User, error)
 
 	CreateRefreshSession(ctx context.Context, s RefreshSession) error
 	GetRefreshSessionByHash(ctx context.Context, tokenHash string) (*RefreshSession, error)
 	DeleteRefreshSessionByHash(ctx context.Context, tokenHash string) error
+	// RotateRefreshSession atomically replaces oldHash with next. It returns
+	// ErrNotFound when another request already consumed the old session.
+	RotateRefreshSession(ctx context.Context, oldHash string, next RefreshSession) error
 	DeleteUserSessions(ctx context.Context, userID uuid.UUID) error
 }

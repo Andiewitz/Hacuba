@@ -47,20 +47,20 @@ func TestForgedTokensRejectedThroughMux(t *testing.T) {
 		base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"`+uuid.Must(uuid.NewV7()).String()+`"}`)) + "."
 
 	// Properly signed but expired.
-	expired, err := tokens.IssueAccess(cfg.JWTSecret, uuid.Must(uuid.NewV7()), "csrf", -time.Minute)
+	expired, err := tokens.IssueAccess(cfg.JWTSecret, uuid.Must(uuid.NewV7()), "buyer", "csrf", -time.Minute)
 	if err != nil {
 		t.Fatalf("mint expired: %v", err)
 	}
 
 	// Properly signed but for the wrong audience.
 	wrongAud, err := tokens.IssueAccess([]byte("wrong-secret-must-be-32-bytes-minimum!"),
-		uuid.Must(uuid.NewV7()), "csrf", time.Minute)
+		uuid.Must(uuid.NewV7()), "buyer", "csrf", time.Minute)
 	if err != nil {
 		t.Fatalf("mint wrong-aud: %v", err)
 	}
 
 	// Valid signature, random garbage appended.
-	valid, err := tokens.IssueAccess(cfg.JWTSecret, uuid.Must(uuid.NewV7()), "csrf", time.Minute)
+	valid, err := tokens.IssueAccess(cfg.JWTSecret, uuid.Must(uuid.NewV7()), "buyer", "csrf", time.Minute)
 	if err != nil {
 		t.Fatalf("mint valid: %v", err)
 	}

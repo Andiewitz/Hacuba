@@ -12,7 +12,7 @@ func TestAccessRoundTrip(t *testing.T) {
 	userID := uuid.MustParse("0193a1b2-c3d4-7e5f-8901-23456789abcd")
 	csrfHash := HashToken("csrf-raw-value")
 
-	raw, err := IssueAccess(secret, userID, csrfHash, 15*time.Minute)
+	raw, err := IssueAccess(secret, userID, "buyer", csrfHash, 15*time.Minute)
 	if err != nil {
 		t.Fatalf("issue: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestAccessRoundTrip(t *testing.T) {
 func TestAccessRejectsWrongSecret(t *testing.T) {
 	good := []byte("test-secret-must-be-32-bytes-minimum!!")
 	bad := []byte("wrong-secret-must-be-32-bytes-minimum!")
-	raw, err := IssueAccess(good, uuid.Must(uuid.NewV7()), HashToken("x"), time.Minute)
+	raw, err := IssueAccess(good, uuid.Must(uuid.NewV7()), "buyer", HashToken("x"), time.Minute)
 	if err != nil {
 		t.Fatalf("issue: %v", err)
 	}

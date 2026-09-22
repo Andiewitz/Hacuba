@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/subtle"
 	"errors"
 	"net/http"
 	"time"
@@ -33,7 +34,7 @@ func Refresh(cfg config.Config, store users.Store) http.HandlerFunc {
 			return
 		}
 		// Double-submit check: header must match cookie value.
-		if csrfHeader != csrfCookie.Value {
+		if subtle.ConstantTimeCompare([]byte(csrfHeader), []byte(csrfCookie.Value)) != 1 {
 			writeError(w, http.StatusForbidden, "invalid CSRF token")
 			return
 		}
@@ -75,15 +76,20 @@ func Refresh(cfg config.Config, store users.Store) http.HandlerFunc {
 			return
 		}
 
-		// Rotate: single-use refresh tokens. Delete before issuing so a
-		// concurrent replay of the old token fails closed.
-		_ = store.DeleteRefreshSessionByHash(r.Context(), refreshHash)
-
-		rotated, err := issueSession(r.Context(), w, cfg, store, user)
+		rotated, next, err := newSession(cfg, user)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "failed to rotate session")
 			return
 		}
-		writeJSON(w, http.StatusOK, rotated)
+		if err := store.RotateRefreshSession(r.Context(), refreshHash, next); err != nil {
+			if errors.Is(err, users.ErrNotFound) {
+				writeError(w, http.StatusUnauthorized, "invalid refresh token")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "failed to rotate session")
+			return
+		}
+		setSessionCookies(w, cfg, rotated.refreshRaw, rotated.CSRFToken, cfg.RefreshTTL)
+		writeJSON(w, http.StatusOK, rotated.SessionResponse)
 	}
 }

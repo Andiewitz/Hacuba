@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -21,8 +20,7 @@ func Register(cfg config.Config, store users.Store) http.HandlerFunc {
 			Email    string `json:"email"`
 			Password string `json:"password"`
 		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeError(w, http.StatusBadRequest, "invalid JSON body")
+		if err := decodeJSONBody(w, r, &req); err != nil {
 			return
 		}
 

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 
@@ -24,7 +25,8 @@ func RequireCSRF(next http.Handler) http.Handler {
 
 		header := r.Header.Get("X-CSRF-Token")
 		cookie, err := r.Cookie("csrf_token")
-		if header == "" || err != nil || cookie.Value == "" || header != cookie.Value {
+		if header == "" || err != nil || cookie.Value == "" ||
+			subtle.ConstantTimeCompare([]byte(header), []byte(cookie.Value)) != 1 {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid CSRF token"})

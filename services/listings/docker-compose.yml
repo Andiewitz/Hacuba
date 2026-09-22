@@ -1,0 +1,42 @@
+services:
+  listings:
+    build:
+      context: ../..
+      dockerfile: services/listings/Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://listings_service:${DB_PASSWORD:?set DB_PASSWORD}@listings-db:5432/listings?sslmode=disable
+    depends_on:
+      listings-db:
+        condition: service_healthy
+    networks:
+      - listings-internal
+      - default
+    ports:
+      - "${PORT:-8081}:8081"
+
+  listings-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: listings
+      POSTGRES_USER: listings_service
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+    volumes:
+      - listings-db-data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - listings-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U listings_service -d listings"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+networks:
+  listings-internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  listings-db-data:

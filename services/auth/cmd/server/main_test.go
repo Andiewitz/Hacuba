@@ -16,7 +16,7 @@ import (
 // secret fallback. Runs the built binary (main cannot be tested in-process:
 // log.Fatalf exits), so this needs the Go toolchain — always true in CI.
 func TestServerRefusesToBootWithoutProdEnv(t *testing.T) {
-	bin := filepath.Join(t.TempDir(), "auth-test")
+	bin := filepath.Join(t.TempDir(), "auth-test.exe")
 
 	buildCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -43,7 +43,8 @@ func TestServerRefusesToBootWithoutProdEnv(t *testing.T) {
 func scrubProdEnv(env []string) []string {
 	kept := env[:0]
 	for _, kv := range env {
-		if strings.HasPrefix(kv, "JWT_SECRET=") || strings.HasPrefix(kv, "DATABASE_URL=") {
+		name, _, _ := strings.Cut(kv, "=")
+		if strings.EqualFold(name, "JWT_SECRET") || strings.EqualFold(name, "DATABASE_URL") {
 			continue
 		}
 		kept = append(kept, kv)
