@@ -2,18 +2,74 @@
 
 import { CheckCircle2, ChevronRight, ImagePlus, Save } from "lucide-react";
 import { useState } from "react";
-import type { FormEvent } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 
+const draftStorageKey = "hacuba:seller-draft";
 const inputClassName = "mt-2 w-full rounded-[var(--radius-sm)] border border-border bg-background px-3 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/40";
 
+type Draft = {
+  mode: "for_sale" | "for_rent";
+  propertyType: string;
+  title: string;
+  city: string;
+  barangay: string;
+  price: string;
+  area: string;
+  bedrooms: string;
+  bathrooms: string;
+  description: string;
+  photoNames: string[];
+};
+
+const initialDraft: Draft = {
+  mode: "for_sale",
+  propertyType: "",
+  title: "",
+  city: "",
+  barangay: "",
+  price: "",
+  area: "",
+  bedrooms: "",
+  bathrooms: "",
+  description: "",
+  photoNames: [],
+};
+
+function storedDraft() {
+  if (typeof window === "undefined") return initialDraft;
+
+  try {
+    const savedDraft = window.localStorage.getItem(draftStorageKey);
+    return savedDraft ? { ...initialDraft, ...JSON.parse(savedDraft) } : initialDraft;
+  } catch {
+    window.localStorage.removeItem(draftStorageKey);
+    return initialDraft;
+  }
+}
+
 export default function SellerPage() {
+  const [draft, setDraft] = useState<Draft>(storedDraft);
   const [saved, setSaved] = useState(false);
-  const [mode, setMode] = useState("for_sale");
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const update = (field: Exclude<keyof Draft, "photoNames">, value: string) => {
+    setDraft((current) => ({ ...current, [field]: value }));
+    setSaved(false);
+  };
+
+  const selectPhotos = (event: ChangeEvent<HTMLInputElement>) => {
+    const photoNames = Array.from(event.target.files ?? []).map((file) => file.name);
+    setDraft((current) => ({ ...current, photoNames }));
+    setSaved(false);
+  };
 
   const saveDraft = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    window.localStorage.setItem(draftStorageKey, JSON.stringify(draft));
     setSaved(true);
   };
+
+  const propertySummary = [draft.propertyType, draft.barangay, draft.city].filter(Boolean).join(" in ") || "Your property";
 
   return (
     <main className="min-h-screen bg-background px-6 py-12 md:px-10 md:py-16 lg:px-20">
@@ -28,10 +84,22 @@ export default function SellerPage() {
           </p>
 
           {saved && (
-            <div className="mt-8 flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-sage-hover)] bg-[var(--color-sage)] p-4 text-[var(--color-forest)]">
+            <div role="status" className="mt-8 flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-sage-hover)] bg-[var(--color-sage)] p-4 text-[var(--color-forest)]">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-              <p className="text-sm leading-6">Your draft details are ready to review. Add photos and complete the required fields before publishing.</p>
+              <p className="text-sm leading-6">Your draft is saved in this browser. Add photos and complete the required fields before publishing.</p>
             </div>
+          )}
+
+          {previewOpen && (
+            <section className="mt-8 rounded-[var(--radius-lg)] border border-border bg-[var(--color-forest)] p-6 text-[var(--text-body-on-dark)] shadow-[var(--shadow-md)]" aria-labelledby="preview-heading">
+              <p className="text-sm font-semibold text-[var(--text-secondary-on-dark)]">Listing preview</p>
+              <h2 id="preview-heading" className="mt-2 font-heading text-[1.75rem] font-semibold leading-[1.25] text-[var(--text-primary-on-dark)]">{draft.title || propertySummary}</h2>
+              <p className="mt-2 text-sm leading-6">{[draft.barangay, draft.city].filter(Boolean).join(", ") || "Location will appear here"}</p>
+              <p className="mt-4 text-[1.125rem] font-semibold text-[var(--text-primary-on-dark)]">
+                {draft.price ? `₱${Number(draft.price.replaceAll(",", "")).toLocaleString()}${draft.mode === "for_rent" ? " / month" : ""}` : "Price will appear here"}
+              </p>
+              <p className="mt-4 text-sm leading-6 text-[var(--text-body-on-dark)]">{draft.description || "Your description will appear here once you add it."}</p>
+            </section>
           )}
 
           <form onSubmit={saveDraft} className="mt-8 rounded-[var(--radius-lg)] border border-border bg-card p-6 shadow-[var(--shadow-md)] md:p-8">
@@ -40,14 +108,14 @@ export default function SellerPage() {
               <div className="mt-6 grid gap-6 md:grid-cols-2">
                 <label className="text-sm font-semibold text-foreground">
                   Listing type
-                  <select className={inputClassName} value={mode} onChange={(event) => setMode(event.target.value)}>
+                  <select className={inputClassName} value={draft.mode} onChange={(event) => update("mode", event.target.value)}>
                     <option value="for_sale">For sale</option>
                     <option value="for_rent">For rent</option>
                   </select>
                 </label>
                 <label className="text-sm font-semibold text-foreground">
                   Property type
-                  <select className={inputClassName} defaultValue="">
+                  <select className={inputClassName} value={draft.propertyType} onChange={(event) => update("propertyType", event.target.value)}>
                     <option value="" disabled>Select a property type</option>
                     <option>House</option>
                     <option>Apartment</option>
@@ -58,35 +126,35 @@ export default function SellerPage() {
                 </label>
                 <label className="text-sm font-semibold text-foreground md:col-span-2">
                   Listing title
-                  <input className={inputClassName} placeholder="Example: Four-bedroom house near Cebu IT Park" />
+                  <input className={inputClassName} value={draft.title} onChange={(event) => update("title", event.target.value)} placeholder="Example: Four-bedroom house near Cebu IT Park" />
                 </label>
                 <label className="text-sm font-semibold text-foreground">
                   City
-                  <input className={inputClassName} placeholder="Cebu City" />
+                  <input className={inputClassName} value={draft.city} onChange={(event) => update("city", event.target.value)} placeholder="Cebu City" />
                 </label>
                 <label className="text-sm font-semibold text-foreground">
                   Barangay
-                  <input className={inputClassName} placeholder="Lahug" />
+                  <input className={inputClassName} value={draft.barangay} onChange={(event) => update("barangay", event.target.value)} placeholder="Lahug" />
                 </label>
                 <label className="text-sm font-semibold text-foreground">
-                  {mode === "for_rent" ? "Monthly rent (PHP)" : "Asking price (PHP)"}
-                  <input className={inputClassName} inputMode="numeric" placeholder={mode === "for_rent" ? "35,000" : "7,500,000"} />
+                  {draft.mode === "for_rent" ? "Monthly rent (PHP)" : "Asking price (PHP)"}
+                  <input className={inputClassName} value={draft.price} onChange={(event) => update("price", event.target.value)} inputMode="numeric" placeholder={draft.mode === "for_rent" ? "35,000" : "7,500,000"} />
                 </label>
                 <label className="text-sm font-semibold text-foreground">
                   Floor or lot area (m²)
-                  <input className={inputClassName} inputMode="decimal" placeholder="120" />
+                  <input className={inputClassName} value={draft.area} onChange={(event) => update("area", event.target.value)} inputMode="decimal" placeholder="120" />
                 </label>
                 <label className="text-sm font-semibold text-foreground">
                   Bedrooms
-                  <input className={inputClassName} inputMode="numeric" placeholder="3" />
+                  <input className={inputClassName} value={draft.bedrooms} onChange={(event) => update("bedrooms", event.target.value)} inputMode="numeric" placeholder="3" />
                 </label>
                 <label className="text-sm font-semibold text-foreground">
                   Bathrooms
-                  <input className={inputClassName} inputMode="numeric" placeholder="2" />
+                  <input className={inputClassName} value={draft.bathrooms} onChange={(event) => update("bathrooms", event.target.value)} inputMode="numeric" placeholder="2" />
                 </label>
                 <label className="text-sm font-semibold text-foreground md:col-span-2">
                   Description
-                  <textarea className={`${inputClassName} min-h-32 resize-y`} placeholder="Describe the space, its condition, and the features that matter to buyers." />
+                  <textarea className={`${inputClassName} min-h-32 resize-y`} value={draft.description} onChange={(event) => update("description", event.target.value)} placeholder="Describe the space, its condition, and the features that matter to buyers." />
                 </label>
               </div>
             </fieldset>
@@ -94,15 +162,17 @@ export default function SellerPage() {
             <section className="mt-10 border-t border-border pt-8" aria-labelledby="photos-heading">
               <h2 id="photos-heading" className="font-heading text-[1.375rem] font-medium leading-[1.3] text-foreground">Photos</h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">Add clear photos of the exterior, main rooms, and important details.</p>
-              <button type="button" className="mt-4 inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground transition-shadow hover:shadow-[var(--shadow-sm)]">
+              <input id="listing-photos" className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectPhotos} />
+              <label htmlFor="listing-photos" className="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-md)] border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground transition-shadow hover:shadow-[var(--shadow-sm)]">
                 <ImagePlus className="h-4 w-4" aria-hidden="true" />
                 Add photos
-              </button>
+              </label>
+              {draft.photoNames.length > 0 && <p className="mt-3 text-sm text-muted-foreground">{draft.photoNames.join(", ")}</p>}
             </section>
 
             <div className="mt-10 flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
-              <button type="button" className="rounded-[var(--radius-md)] border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground transition-shadow hover:shadow-[var(--shadow-sm)]">
-                Preview listing
+              <button type="button" onClick={() => setPreviewOpen((open) => !open)} className="rounded-[var(--radius-md)] border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground transition-shadow hover:shadow-[var(--shadow-sm)]">
+                {previewOpen ? "Hide preview" : "Preview listing"}
               </button>
               <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-primary px-5 py-3 text-sm font-semibold text-[var(--color-forest)] transition-colors hover:bg-[var(--color-terracotta-hover)]">
                 <Save className="h-4 w-4" aria-hidden="true" />
