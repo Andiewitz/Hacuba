@@ -7,14 +7,131 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hacuba/listings/internal/images"
 	"github.com/hacuba/listings/internal/listings"
 	"github.com/hacuba/listings/internal/middleware"
 )
 
-type Handler struct{ Store listings.Store }
+type Handler struct {
+	Store   listings.Store
+	Objects images.ObjectStore
+}
+
+func (h Handler) PresignImage(w http.ResponseWriter, r *http.Request) {
+	l, ok := h.ownerListing(w, r)
+	if !ok {
+		return
+	}
+	if h.Objects == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "image storage unavailable"})
+		return
+	}
+	var req struct {
+		ContentType string `json:"content_type"`
+		ByteSize    int64  `json:"byte_size"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if err := images.Validate(req.ContentType, req.ByteSize); err != nil {
+		badRequest(w, map[string]string{"image": err.Error()})
+		return
+	}
+	existing, err := h.Store.ListImages(r.Context(), l.ID)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	if len(existing) >= 20 {
+		badRequest(w, map[string]string{"images": "maximum 20 images"})
+		return
+	}
+	key, err := images.NewKey(l.ID, req.ContentType)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	url, err := h.Objects.PresignPut(r.Context(), key, req.ContentType, req.ByteSize)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"object_key": key, "upload_url": url})
+}
+
+func (h Handler) RegisterImage(w http.ResponseWriter, r *http.Request) {
+	l, ok := h.ownerListing(w, r)
+	if !ok {
+		return
+	}
+	if h.Objects == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "image storage unavailable"})
+		return
+	}
+	var req struct {
+		ObjectKey   string  `json:"object_key"`
+		ContentType string  `json:"content_type"`
+		ByteSize    int64   `json:"byte_size"`
+		Position    int16   `json:"position"`
+		Alt         *string `json:"alt"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if err := images.Validate(req.ContentType, req.ByteSize); err != nil {
+		badRequest(w, map[string]string{"image": err.Error()})
+		return
+	}
+	if !strings.HasPrefix(req.ObjectKey, "listings/"+l.ID.String()+"/") {
+		badRequest(w, map[string]string{"object_key": "invalid listing object key"})
+		return
+	}
+	if err := h.Objects.Head(r.Context(), req.ObjectKey); err != nil {
+		badRequest(w, map[string]string{"object_key": "uploaded object not found"})
+		return
+	}
+	id, err := uuid.NewV7()
+	if err != nil {
+		internalError(w)
+		return
+	}
+	image, err := h.Store.AddImage(r.Context(), listings.Image{ID: id, ListingID: l.ID, ObjectKey: req.ObjectKey, ContentType: req.ContentType, ByteSize: req.ByteSize, Position: req.Position, Alt: req.Alt}, l.OwnerID)
+	if errors.Is(err, listings.ErrNotFound) {
+		notFound(w)
+		return
+	}
+	if err != nil {
+		badRequest(w, map[string]string{"image": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusCreated, image)
+}
+
+func (h Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
+	l, ok := h.ownerListing(w, r)
+	if !ok {
+		return
+	}
+	imageID, err := uuid.Parse(r.PathValue("imageId"))
+	if err != nil {
+		badRequest(w, map[string]string{"image_id": "invalid UUID"})
+		return
+	}
+	err = h.Store.DeleteImage(r.Context(), l.ID, imageID, l.OwnerID)
+	if errors.Is(err, listings.ErrNotFound) {
+		notFound(w)
+		return
+	}
+	if err != nil {
+		internalError(w)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
 
 func (h Handler) Create(w http.ResponseWriter, r *http.Request) {
 	owner, ok := middleware.UserID(r.Context())

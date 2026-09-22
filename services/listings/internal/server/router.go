@@ -5,12 +5,19 @@ import (
 
 	"github.com/hacuba/listings/internal/config"
 	"github.com/hacuba/listings/internal/handlers"
+	"github.com/hacuba/listings/internal/images"
 	"github.com/hacuba/listings/internal/listings"
 	"github.com/hacuba/listings/internal/middleware"
 )
 
 func NewMux(cfg config.Config, store listings.Store) http.Handler {
-	h := handlers.Handler{Store: store}
+	return NewMuxWithObjects(cfg, store, nil)
+}
+
+// NewMuxWithObjects injects S3 only in deployments that configure it; tests
+// and local API work can still exercise every non-image route without AWS.
+func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.ObjectStore) http.Handler {
+	h := handlers.Handler{Store: store, Objects: objects}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -30,5 +37,8 @@ func NewMux(cfg config.Config, store listings.Store) http.Handler {
 	mux.Handle("POST /listings/{id}/unpublish", writes(http.HandlerFunc(h.Unpublish)))
 	mux.Handle("POST /listings/{id}/close", writes(http.HandlerFunc(h.Close)))
 	mux.Handle("DELETE /listings/{id}", writes(http.HandlerFunc(h.Archive)))
+	mux.Handle("POST /listings/{id}/images/presign", writes(http.HandlerFunc(h.PresignImage)))
+	mux.Handle("POST /listings/{id}/images", writes(http.HandlerFunc(h.RegisterImage)))
+	mux.Handle("DELETE /listings/{id}/images/{imageId}", writes(http.HandlerFunc(h.DeleteImage)))
 	return mux
 }

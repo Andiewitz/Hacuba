@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hacuba/listings/internal/config"
+	"github.com/hacuba/listings/internal/images"
 	"github.com/hacuba/listings/internal/listings"
 	"github.com/hacuba/listings/internal/server"
 )
@@ -27,7 +28,15 @@ func main() {
 	} else {
 		log.Print("listings: DATABASE_URL unset — using in-memory store (dev only)")
 	}
-	srv := &http.Server{Addr: ":" + cfg.Port, Handler: server.NewMux(cfg, store), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
+	var objects images.ObjectStore
+	if cfg.S3Region != "" || cfg.S3Bucket != "" {
+		s3Store, err := images.NewS3Store(context.Background(), cfg.S3Region, cfg.S3Bucket)
+		if err != nil {
+			log.Fatalf("listings: image store: %v", err)
+		}
+		objects = s3Store
+	}
+	srv := &http.Server{Addr: ":" + cfg.Port, Handler: server.NewMuxWithObjects(cfg, store, objects), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	log.Printf("listings: listening on :%s", cfg.Port)
 	log.Fatal(srv.ListenAndServe())
 }
