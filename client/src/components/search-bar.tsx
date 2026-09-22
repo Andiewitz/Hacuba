@@ -90,7 +90,7 @@ export default function SearchBar() {
 
   return (
     <div ref={containerRef} className="relative mx-auto w-full max-w-3xl">
-      <div className="relative flex items-center rounded-full border border-border bg-muted/50 shadow-md transition-shadow hover:shadow-lg">
+      <div className="relative flex items-center rounded-full border border-border bg-white shadow-md transition-shadow hover:shadow-lg">
         {/* Where */}
         <button
           onClick={() => setActiveSegment(activeSegment === "where" ? null : "where")}
