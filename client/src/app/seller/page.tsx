@@ -3,6 +3,7 @@
 import { CheckCircle2, ChevronRight, CircleAlert, ImagePlus, Save, Send } from "lucide-react";
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
+import Link from "next/link";
 import PropertyCard from "@/components/property-card";
 
 const draftStorageKey = "hacuba:seller-draft";
@@ -121,7 +122,10 @@ export default function SellerPage() {
     <main className="min-h-screen bg-background px-6 py-12 md:px-10 md:py-16 lg:px-20">
       <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
         <div>
-          <p className="text-sm font-semibold text-[var(--color-terracotta-ink)]">Seller workspace</p>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm font-semibold text-[var(--color-terracotta-ink)]">Seller workspace</p>
+            <Link href="/seller/listings" className="text-sm font-semibold text-[var(--color-terracotta-ink)] underline-offset-4 hover:underline">My listings</Link>
+          </div>
           <h1 className="mt-3 font-heading text-[2.75rem] font-bold leading-[1.15] tracking-[-0.015em] text-foreground">
             List your property
           </h1>
@@ -139,7 +143,7 @@ export default function SellerPage() {
           {published && (
             <div role="status" className="mt-8 flex items-start gap-3 rounded-[var(--radius-md)] border border-[var(--color-sage-hover)] bg-[var(--color-sage)] p-4 text-[var(--color-forest)]">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-              <p className="text-sm leading-6">Published locally. The card below is the property buyers will see once the listings API is connected.</p>
+              <p className="text-sm leading-6">Your listing is published in this workspace. <Link href="/seller/listings" className="font-semibold underline underline-offset-4">View it in My listings</Link>.</p>
             </div>
           )}
 

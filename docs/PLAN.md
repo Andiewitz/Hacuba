@@ -160,8 +160,9 @@ stored object keys.
 **Status: seller workspace UI started; service mutations remain pending.**
 The browse search writes validated filter query parameters and category pages
 read the same filter shape. The seller page provides local draft persistence,
-photo-selection feedback, and a preview; its server-side save, publish, and
-image actions will connect to the route handlers in this phase.
+photo-selection feedback, publish validation, a buyer-facing card preview, a
+seller dashboard, and a buyer-facing listing preview. Its server-side save,
+publish, and image actions will connect to the route handlers in this phase.
 
 - Make the search controls write validated `city`, `min_price`, `max_price`,
   `type`, and `mode` query parameters with `next/navigation`; pages read those
