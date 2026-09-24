@@ -1,7 +1,7 @@
-import { Bath, BedDouble, ChevronLeft, MapPin, Ruler } from "lucide-react";
-import Image from "next/image";
+import { Bath, BedDouble, ChevronLeft, Mail, MapPin, Phone, Ruler } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import ListingGallery from "@/components/listing-gallery";
 import { getPublicListing, listingImageUrl } from "@/lib/listings";
 
 type ListingPageProps = {
@@ -52,32 +52,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
       </section>
 
       <div className="mx-auto max-w-[1440px] px-6 pt-6 md:px-10 md:pt-8 lg:px-20">
-        <section aria-label="Property gallery" className="overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-forest-surface-1)] shadow-[var(--shadow-lg)]">
-          {images.length > 0 ? (
-            <div className={images.length > 1 ? "grid aspect-[16/10] grid-cols-[minmax(0,2fr)_minmax(180px,1fr)] gap-1 bg-[var(--color-forest)]" : "relative aspect-[16/10]"}>
-              <div className="relative min-h-0">
-                <Image src={images[0]} alt={listing.title} fill priority unoptimized className="object-cover" />
-                <span className="absolute left-4 top-4 rounded-full bg-[var(--color-sage)] px-3 py-1 text-xs font-semibold text-[var(--color-forest)]">
-                  {listing.listing_mode === "for_rent" ? "For rent" : "For sale"}
-                </span>
-              </div>
-              {images.length > 1 && (
-                <div className="grid min-h-0 grid-rows-2 gap-1">
-                  {images.slice(1, 3).map((image, index) => (
-                    <div key={image} className="relative min-h-0">
-                      <Image src={image} alt={`${listing.title}, photo ${index + 2}`} fill unoptimized className="object-cover" />
-                    </div>
-                  ))}
-                  {images.length === 2 && <div className="bg-[var(--color-forest-surface-2)]" />}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex aspect-[16/10] items-center justify-center px-6 text-center">
-              <p className="max-w-[36ch] text-sm leading-[1.5] text-[var(--text-body-on-dark)]">No public photos have been added to this listing yet.</p>
-            </div>
-          )}
-        </section>
+        <ListingGallery images={images} title={listing.title} mode={listing.listing_mode} />
 
         <div className="grid gap-8 py-10 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:py-12">
           <article className="min-w-0">
@@ -131,6 +106,27 @@ export default async function ListingPage({ params }: ListingPageProps) {
                 <dd className="mt-1 font-semibold text-foreground">{location}</dd>
               </div>
             </dl>
+            {(listing.contact_phone || listing.contact_email) && (
+              <section className="mt-8 border-t border-border pt-6" aria-labelledby="contact-heading">
+                <p className="text-sm font-semibold text-[var(--color-terracotta-ink)]">Contact the seller</p>
+                <h2 id="contact-heading" className="mt-2 font-heading text-[1.375rem] font-medium leading-[1.3] text-foreground">{listing.seller_name}</h2>
+                <div className="mt-4 grid gap-3">
+                  {listing.contact_phone && (
+                    <a href={`tel:${listing.contact_phone.replace(/[^+\d]/g, "")}`} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card">
+                      <Phone className="h-4 w-4 text-[var(--color-terracotta-ink)]" aria-hidden="true" />
+                      {listing.contact_phone}
+                    </a>
+                  )}
+                  {listing.contact_email && (
+                    <a href={`mailto:${listing.contact_email}`} className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card">
+                      <Mail className="h-4 w-4 text-[var(--color-terracotta-ink)]" aria-hidden="true" />
+                      {listing.contact_email}
+                    </a>
+                  )}
+                </div>
+                <p className="mt-4 text-sm leading-[1.5] text-[var(--text-secondary-on-light)]">Hacuba helps you discover listings. You and the seller arrange viewings, terms, and payment directly.</p>
+              </section>
+            )}
           </aside>
         </div>
       </div>

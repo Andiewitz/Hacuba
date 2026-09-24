@@ -2,7 +2,9 @@ package listings
 
 import (
 	"fmt"
+	"net/mail"
 	"strings"
+	"unicode"
 )
 
 // Apply merges a create or patch body. Call ValidateDraft before persisting.
@@ -58,6 +60,15 @@ func (l *Listing) Apply(in Input) {
 	if in.Details != nil {
 		l.Details = *in.Details
 	}
+	if in.SellerName != nil {
+		l.SellerName = strings.TrimSpace(*in.SellerName)
+	}
+	if in.ContactPhone != nil {
+		l.ContactPhone = strings.TrimSpace(*in.ContactPhone)
+	}
+	if in.ContactEmail != nil {
+		l.ContactEmail = strings.TrimSpace(*in.ContactEmail)
+	}
 }
 
 func validMode(v string) bool { return v == ModeSale || v == ModeRent }
@@ -79,6 +90,15 @@ func ValidateDraft(l Listing) map[string]string {
 	}
 	if len(l.Description) > 5000 {
 		fields["description"] = "must be at most 5000 characters"
+	}
+	if l.SellerName != "" && (len(l.SellerName) < 2 || len(l.SellerName) > 80) {
+		fields["seller_name"] = "must be 2 to 80 characters"
+	}
+	if l.ContactPhone != "" && !validPhone(l.ContactPhone) {
+		fields["contact_phone"] = "must be a valid phone number"
+	}
+	if l.ContactEmail != "" && !validEmail(l.ContactEmail) {
+		fields["contact_email"] = "must be a valid email address"
 	}
 	if l.PriceCentavos != nil && *l.PriceCentavos <= 0 {
 		fields["price_centavos"] = "must be greater than zero"
@@ -132,6 +152,12 @@ func MissingPublishFields(l Listing, imageCount int) map[string]string {
 	if strings.TrimSpace(l.City) == "" {
 		fields["city"] = "missing"
 	}
+	if strings.TrimSpace(l.SellerName) == "" {
+		fields["seller_name"] = "missing"
+	}
+	if strings.TrimSpace(l.ContactPhone) == "" && strings.TrimSpace(l.ContactEmail) == "" {
+		fields["contact"] = "add a phone number or email address"
+	}
 	if imageCount < 1 {
 		fields["images"] = "at least one image is required"
 	}
@@ -171,3 +197,25 @@ func MissingPublishFields(l Listing, imageCount int) map[string]string {
 }
 
 func (l Listing) String() string { return fmt.Sprintf("listing %s", l.ID) }
+
+func validEmail(value string) bool {
+	address, err := mail.ParseAddress(value)
+	return err == nil && address.Address == value && len(value) <= 254
+}
+
+func validPhone(value string) bool {
+	if len(value) > 40 {
+		return false
+	}
+	digits := 0
+	for _, character := range value {
+		if unicode.IsDigit(character) {
+			digits++
+			continue
+		}
+		if !strings.ContainsRune("+ -().", character) {
+			return false
+		}
+	}
+	return digits >= 7
+}

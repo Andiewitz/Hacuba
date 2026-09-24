@@ -45,6 +45,9 @@ type Listing struct {
 	FloorAreaSQM  *float64        `json:"floor_area_sqm,omitempty"`
 	LotAreaSQM    *float64        `json:"lot_area_sqm,omitempty"`
 	Details       json.RawMessage `json:"details,omitempty"`
+	SellerName    string          `json:"seller_name,omitempty"`
+	ContactPhone  string          `json:"contact_phone,omitempty"`
+	ContactEmail  string          `json:"contact_email,omitempty"`
 	Status        string          `json:"status"`
 	PublishedAt   *time.Time      `json:"published_at,omitempty"`
 	CreatedAt     time.Time       `json:"created_at"`
@@ -82,6 +85,9 @@ type Input struct {
 	FloorAreaSQM  *float64         `json:"floor_area_sqm"`
 	LotAreaSQM    *float64         `json:"lot_area_sqm"`
 	Details       *json.RawMessage `json:"details"`
+	SellerName    *string          `json:"seller_name"`
+	ContactPhone  *string          `json:"contact_phone"`
+	ContactEmail  *string          `json:"contact_email"`
 }
 
 type ListFilter struct {

@@ -20,6 +20,9 @@ type Draft = {
   bedrooms: string;
   bathrooms: string;
   description: string;
+  sellerName: string;
+  contactPhone: string;
+  contactEmail: string;
   photoNames: string[];
 };
 
@@ -34,6 +37,9 @@ const initialDraft: Draft = {
   bedrooms: "",
   bathrooms: "",
   description: "",
+  sellerName: "",
+  contactPhone: "",
+  contactEmail: "",
   photoNames: [],
 };
 
@@ -92,6 +98,8 @@ export default function SellerPage() {
     if (!draft.city.trim()) errors.city = "Add the city.";
     if (!Number.isFinite(price) || price <= 0) errors.price = "Enter a valid price.";
     if (!draft.description.trim()) errors.description = "Add a property description.";
+    if (draft.sellerName.trim().length < 2) errors.sellerName = "Add the seller or agent name.";
+    if (!draft.contactPhone.trim() && !draft.contactEmail.trim()) errors.contact = "Add a phone number or email address.";
     if (draft.photoNames.length === 0) errors.photos = "Add at least one property image.";
 
     if (["House", "Apartment", "Condo"].includes(draft.propertyType)) {
@@ -229,6 +237,28 @@ export default function SellerPage() {
                 </label>
               </div>
             </fieldset>
+
+            <section className="mt-10 border-t border-border pt-8" aria-labelledby="contact-heading">
+              <p className="text-sm font-semibold text-[var(--color-terracotta-ink)]">Buyer contact</p>
+              <h2 id="contact-heading" className="mt-2 font-heading text-[1.375rem] font-medium leading-[1.3] text-foreground">How buyers can reach you</h2>
+              <p className="mt-2 max-w-[62ch] text-sm leading-6 text-muted-foreground">Hacuba helps buyers discover your listing. You arrange viewings, terms, and payment directly with them.</p>
+              <div className="mt-6 grid gap-6 md:grid-cols-2">
+                <label className="text-sm font-semibold text-foreground md:col-span-2">
+                  Seller or agent name
+                  <input className={inputClassName} value={draft.sellerName} onChange={(event) => update("sellerName", event.target.value)} placeholder="Your name or agency" />
+                  {publishErrors.sellerName && <span className="mt-2 block text-xs text-[var(--color-terracotta-ink)]">{publishErrors.sellerName}</span>}
+                </label>
+                <label className="text-sm font-semibold text-foreground">
+                  Phone number
+                  <input className={inputClassName} value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} inputMode="tel" placeholder="+63 917 123 4567" />
+                </label>
+                <label className="text-sm font-semibold text-foreground">
+                  Email address
+                  <input className={inputClassName} value={draft.contactEmail} onChange={(event) => update("contactEmail", event.target.value)} inputMode="email" placeholder="you@example.com" />
+                </label>
+              </div>
+              {publishErrors.contact && <p className="mt-3 text-xs text-[var(--color-terracotta-ink)]">{publishErrors.contact}</p>}
+            </section>
 
             <section className="mt-10 border-t border-border pt-8" aria-labelledby="photos-heading">
               <h2 id="photos-heading" className="font-heading text-[1.375rem] font-medium leading-[1.3] text-foreground">Photos</h2>

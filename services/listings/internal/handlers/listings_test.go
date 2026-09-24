@@ -71,6 +71,37 @@ func TestBuyerCannotCreateListing(t *testing.T) {
 	}
 }
 
+func TestPublicDetailIncludesContactButBrowseDoesNot(t *testing.T) {
+	store := listings.NewMemoryStore()
+	listingID, ownerID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	price := int64(750_000_000)
+	now := time.Now().UTC()
+	_, err := store.Create(t.Context(), listings.Listing{
+		ID: listingID, OwnerID: ownerID, ListingMode: listings.ModeSale, PropertyType: listings.TypeHouse,
+		Title: "Family home near Cebu IT Park", Description: "A public detail test listing.", PriceCentavos: &price,
+		Currency: "PHP", City: "Cebu City", SellerName: "Mika Santos", ContactPhone: "+63 917 555 0142",
+		ContactEmail: "mika.santos@example.test", Status: listings.StatusPublished, PublishedAt: &now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := server.NewMux(config.Config{JWTSecret: []byte("listings-test-secret-must-be-32-bytes!!")}, store)
+
+	detailRequest := httptest.NewRequest(http.MethodGet, "/listings/"+listingID.String(), nil)
+	detail := httptest.NewRecorder()
+	mux.ServeHTTP(detail, detailRequest)
+	if detail.Code != http.StatusOK || !strings.Contains(detail.Body.String(), "mika.santos@example.test") {
+		t.Fatalf("public detail = %d: %s", detail.Code, detail.Body.String())
+	}
+
+	browseRequest := httptest.NewRequest(http.MethodGet, "/listings", nil)
+	browse := httptest.NewRecorder()
+	mux.ServeHTTP(browse, browseRequest)
+	if browse.Code != http.StatusOK || strings.Contains(browse.Body.String(), "mika.santos@example.test") {
+		t.Fatalf("public browse = %d: %s", browse.Code, browse.Body.String())
+	}
+}
+
 func sellerToken(t *testing.T, secret []byte, id uuid.UUID) (string, string) {
 	t.Helper()
 	csrf := "csrf-value-" + id.String()

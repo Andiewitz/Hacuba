@@ -32,7 +32,7 @@ func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 }
 func (s *PostgresStore) Close() { s.pool.Close() }
 
-const listingColumns = `id, owner_id, listing_mode, property_type, title, description, price_centavos, currency, price_period, city, barangay, address_line, lat, lng, bedrooms, bathrooms, floor_area_sqm, lot_area_sqm, details, status, published_at, created_at, updated_at`
+const listingColumns = `id, owner_id, listing_mode, property_type, title, description, price_centavos, currency, price_period, city, barangay, address_line, lat, lng, bedrooms, bathrooms, floor_area_sqm, lot_area_sqm, details, seller_name, contact_phone, contact_email, status, published_at, created_at, updated_at`
 const listingJSON = `owner_id, row_to_json(listings)`
 
 func scanListing(row pgx.Row) (*Listing, error) {
@@ -56,8 +56,8 @@ func (s *PostgresStore) Create(ctx context.Context, l Listing) (*Listing, error)
 	if l.Details == nil {
 		l.Details = json.RawMessage(`{}`)
 	}
-	return scanListing(s.pool.QueryRow(ctx, `INSERT INTO listings (`+listingColumns+`) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,now(),now()) RETURNING `+listingJSON,
-		l.ID, l.OwnerID, nullString(l.ListingMode), nullString(l.PropertyType), nullString(l.Title), nullString(l.Description), l.PriceCentavos, l.Currency, l.PricePeriod, nullString(l.City), l.Barangay, l.AddressLine, l.Lat, l.Lng, l.Bedrooms, l.Bathrooms, l.FloorAreaSQM, l.LotAreaSQM, l.Details, l.Status, l.PublishedAt))
+	return scanListing(s.pool.QueryRow(ctx, `INSERT INTO listings (`+listingColumns+`) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,now(),now()) RETURNING `+listingJSON,
+		l.ID, l.OwnerID, nullString(l.ListingMode), nullString(l.PropertyType), nullString(l.Title), nullString(l.Description), l.PriceCentavos, l.Currency, l.PricePeriod, nullString(l.City), l.Barangay, l.AddressLine, l.Lat, l.Lng, l.Bedrooms, l.Bathrooms, l.FloorAreaSQM, l.LotAreaSQM, l.Details, nullString(l.SellerName), nullString(l.ContactPhone), nullString(l.ContactEmail), l.Status, l.PublishedAt))
 }
 
 func (s *PostgresStore) GetPublished(ctx context.Context, id uuid.UUID) (*Listing, error) {
@@ -71,8 +71,8 @@ func (s *PostgresStore) SaveOwner(ctx context.Context, l Listing, owner uuid.UUI
 	if l.Details == nil {
 		l.Details = json.RawMessage(`{}`)
 	}
-	return scanListing(s.pool.QueryRow(ctx, `UPDATE listings SET listing_mode=$1, property_type=$2, title=$3, description=$4, price_centavos=$5, currency=$6, price_period=$7, city=$8, barangay=$9, address_line=$10, lat=$11, lng=$12, bedrooms=$13, bathrooms=$14, floor_area_sqm=$15, lot_area_sqm=$16, details=$17, status=$18, published_at=$19, updated_at=now() WHERE id=$20 AND owner_id=$21 RETURNING `+listingJSON,
-		nullString(l.ListingMode), nullString(l.PropertyType), nullString(l.Title), nullString(l.Description), l.PriceCentavos, l.Currency, l.PricePeriod, nullString(l.City), l.Barangay, l.AddressLine, l.Lat, l.Lng, l.Bedrooms, l.Bathrooms, l.FloorAreaSQM, l.LotAreaSQM, l.Details, l.Status, l.PublishedAt, l.ID, owner))
+	return scanListing(s.pool.QueryRow(ctx, `UPDATE listings SET listing_mode=$1, property_type=$2, title=$3, description=$4, price_centavos=$5, currency=$6, price_period=$7, city=$8, barangay=$9, address_line=$10, lat=$11, lng=$12, bedrooms=$13, bathrooms=$14, floor_area_sqm=$15, lot_area_sqm=$16, details=$17, seller_name=$18, contact_phone=$19, contact_email=$20, status=$21, published_at=$22, updated_at=now() WHERE id=$23 AND owner_id=$24 RETURNING `+listingJSON,
+		nullString(l.ListingMode), nullString(l.PropertyType), nullString(l.Title), nullString(l.Description), l.PriceCentavos, l.Currency, l.PricePeriod, nullString(l.City), l.Barangay, l.AddressLine, l.Lat, l.Lng, l.Bedrooms, l.Bathrooms, l.FloorAreaSQM, l.LotAreaSQM, l.Details, nullString(l.SellerName), nullString(l.ContactPhone), nullString(l.ContactEmail), l.Status, l.PublishedAt, l.ID, owner))
 }
 
 func (s *PostgresStore) ListPublished(ctx context.Context, f ListFilter) ([]Listing, error) {

@@ -302,6 +302,8 @@ func (h Handler) ListPublic(w http.ResponseWriter, r *http.Request) {
 			internalError(w)
 			return
 		}
+		// Contact details are displayed only after a buyer opens one listing.
+		item.SellerName, item.ContactPhone, item.ContactEmail = "", "", ""
 		response = append(response, publicDetail{Listing: item, Images: images})
 	}
 	next := ""

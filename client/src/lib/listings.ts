@@ -33,6 +33,9 @@ export interface ListingDetail {
   bathrooms?: number;
   floor_area_sqm?: number;
   lot_area_sqm?: number;
+  seller_name?: string;
+  contact_phone?: string;
+  contact_email?: string;
   images?: Array<{ object_key: string }>;
 }
 
@@ -55,8 +58,14 @@ const catalogue: ListingCardData[] = [
 
 const developmentImages: Record<string, string> = {
   "development/lahug-house.jpg": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1800&h=1125&fit=crop",
+  "development/lahug-house-living.jpg": "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=1800&h=1125&fit=crop",
+  "development/lahug-house-garden.jpg": "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=1800&h=1125&fit=crop",
   "development/lahug-condo.jpg": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1800&h=1125&fit=crop",
+  "development/lahug-condo-bedroom.jpg": "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1800&h=1125&fit=crop",
+  "development/lahug-condo-view.jpg": "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=1800&h=1125&fit=crop",
   "development/busay-lot.jpg": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1800&h=1125&fit=crop",
+  "development/busay-lot-view.jpg": "https://images.unsplash.com/photo-1448375240586-882707db888b?w=1800&h=1125&fit=crop",
+  "development/busay-lot-road.jpg": "https://images.unsplash.com/photo-1473448912268-2022ce9509d8?w=1800&h=1125&fit=crop",
 };
 
 export function listingImageUrl(objectKey?: string) {

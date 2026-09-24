@@ -14,6 +14,9 @@ type SellerListing = {
   bedrooms: string;
   bathrooms: string;
   description: string;
+  sellerName: string;
+  contactPhone: string;
+  contactEmail: string;
   photoNames: string[];
 };
 
@@ -88,10 +91,13 @@ export default function ListingPreviewPage() {
         </article>
 
         <aside className="h-fit rounded-[var(--radius-lg)] bg-[var(--color-forest)] p-6 text-[var(--text-body-on-dark)] shadow-[var(--shadow-lg)] lg:sticky lg:top-28">
-          <p className="text-sm font-semibold text-[var(--text-secondary-on-dark)]">Interested in this property?</p>
-          <h2 className="mt-3 font-heading text-[1.75rem] font-semibold leading-[1.25] text-[var(--text-primary-on-dark)]">Contact the seller</h2>
-          <p className="mt-3 text-sm leading-6">Contact details will appear here after the buyer and seller messaging flow is connected.</p>
-          <button type="button" className="mt-6 w-full rounded-[var(--radius-md)] bg-primary px-4 py-3 text-sm font-semibold text-[var(--color-forest)] transition-colors hover:bg-[var(--color-terracotta-hover)]">Request information</button>
+          <p className="text-sm font-semibold text-[var(--text-secondary-on-dark)]">Contact the seller</p>
+          <h2 className="mt-3 font-heading text-[1.75rem] font-semibold leading-[1.25] text-[var(--text-primary-on-dark)]">{listing.sellerName}</h2>
+          <div className="mt-5 grid gap-3">
+            {listing.contactPhone && <a href={`tel:${listing.contactPhone.replace(/[^+\d]/g, "")}`} className="rounded-[var(--radius-md)] border border-[var(--color-forest-border-strong)] px-4 py-3 text-sm font-semibold text-[var(--text-body-on-dark)] underline-offset-4 hover:underline">{listing.contactPhone}</a>}
+            {listing.contactEmail && <a href={`mailto:${listing.contactEmail}`} className="rounded-[var(--radius-md)] border border-[var(--color-forest-border-strong)] px-4 py-3 text-sm font-semibold text-[var(--text-body-on-dark)] underline-offset-4 hover:underline">{listing.contactEmail}</a>}
+          </div>
+          <p className="mt-5 text-sm leading-6">Hacuba helps buyers discover listings. You and the seller arrange viewings, terms, and payment directly.</p>
         </aside>
       </div>
     </main>
