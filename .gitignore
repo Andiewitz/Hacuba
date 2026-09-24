@@ -42,3 +42,4 @@ next-env.d.ts
 
 # Local development databases
 services/listings/.dev/
+services/auth/.dev/

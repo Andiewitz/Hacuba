@@ -1,6 +1,7 @@
 // Command server is the auth service entrypoint.
 //
 // Routes:
+//
 //	POST /auth/register  public, CSRF-exempt (no session yet)
 //	POST /auth/login     public, rate-limited, CSRF-exempt (no session yet)
 //	POST /auth/refresh   refresh cookie + CSRF double-submit, rotates session
@@ -28,11 +29,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("auth: invalid config: %v", err)
 	}
-	// The server binary is the production artifact: refuse to boot on the
-	// dev-only secret fallback or without a database. Tests never exec
-	// main, so `go test` without env keeps working.
-	if err := cfg.EnsureProdReady(); err != nil {
-		log.Fatalf("auth: not production-ready: %v", err)
+	// Production requires Postgres. Persistent local development must opt in
+	// to the separate SQLite store so a production launch cannot fall back.
+	if cfg.DevSQLitePath == "" && cfg.DatabaseURL == "" {
+		log.Fatal("auth: not production-ready: DATABASE_URL is required; set DEV_SQLITE_PATH only for local development")
 	}
 
 	store, err := newStore(cfg)
@@ -74,16 +74,17 @@ func main() {
 	}
 }
 
-// newStore connects to the private Postgres when DATABASE_URL is set.
-// Without it (unit tests, `go run` without docker) it falls back to an
-// in-memory store so the service still boots — production Compose always
-// sets DATABASE_URL to auth-db, the only network route to that database.
+// newStore connects to private Postgres in production or the separate,
+// persistent SQLite schema only when DEV_SQLITE_PATH is explicitly set.
 func newStore(cfg config.Config) (users.Store, error) {
-	if cfg.DatabaseURL == "" {
-		log.Print("auth: DATABASE_URL unset — using in-memory store (dev only)")
-		return users.NewMemoryStore(), nil
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if cfg.DevSQLitePath != "" {
+		store, err := users.NewSQLiteStore(ctx, cfg.DevSQLitePath)
+		if err == nil {
+			log.Print("auth: DEV_SQLITE_PATH is set — using persistent development SQLite")
+		}
+		return store, err
+	}
 	return users.NewPostgresStore(ctx, cfg.DatabaseURL)
 }

@@ -4,7 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Eye, EyeOff, Pencil } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
-import { authErrorCleared, loginWithPassword } from "@/lib/slices/auth";
+import {
+  authErrorCleared,
+  loginWithPassword,
+  registerWithPassword,
+} from "@/lib/slices/auth";
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
@@ -44,6 +48,7 @@ export default function AuthDialog({
   const { status, error } = useAppSelector((s) => s.auth);
   const [email, setEmail] = useState("");
   const [emailCommitted, setEmailCommitted] = useState<string | null>(null);
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -55,6 +60,7 @@ export default function AuthDialog({
     setEmailError(null);
     setPassword("");
     setEmailCommitted(null);
+    setMode("login");
     dispatch(authErrorCleared());
     onClose();
   }, [dispatch, onClose]);
@@ -83,10 +89,9 @@ export default function AuthDialog({
 
   const submitPassword = async () => {
     if (!emailCommitted || password.length === 0) return;
-    const result = await dispatch(
-      loginWithPassword({ email: emailCommitted, password }),
-    );
-    if (loginWithPassword.fulfilled.match(result)) resetAndClose();
+    const action = mode === "login" ? loginWithPassword : registerWithPassword;
+    const result = await dispatch(action({ email: emailCommitted, password }));
+    if (action.fulfilled.match(result)) resetAndClose();
   };
 
   return (
@@ -118,11 +123,12 @@ export default function AuthDialog({
               id="auth-dialog-title"
               className="font-heading text-[22px] leading-[1.3] font-medium"
             >
-              Welcome to Hacuba
+              {mode === "login" ? "Welcome back" : "Create your account"}
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Log in or create an account to save homes and pick up where you
-              left off.
+              {mode === "login"
+                ? "Log in to continue browsing and manage your seller access."
+                : "Create an account to start managing your seller access."}
             </p>
 
             <button
@@ -145,6 +151,32 @@ export default function AuthDialog({
                 or
               </span>
               <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <div className="mb-6 grid grid-cols-2 rounded-md border border-border bg-muted/40 p-1">
+              {(
+                [
+                  ["login", "Log in"],
+                  ["register", "Create account"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => {
+                    setMode(value);
+                    setPassword("");
+                    dispatch(authErrorCleared());
+                  }}
+                  className={`rounded-sm px-3 py-2 text-sm font-semibold transition-colors ${
+                    mode === value
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             <AnimatePresence mode="wait" initial={false}>
@@ -224,8 +256,8 @@ export default function AuthDialog({
                       id="auth-password"
                       ref={passwordRef}
                       type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      placeholder="Your password"
+                      autoComplete={mode === "login" ? "current-password" : "new-password"}
+                      placeholder={mode === "login" ? "Your password" : "8+ characters, letters and numbers"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       onKeyDown={(e) => {
@@ -251,13 +283,24 @@ export default function AuthDialog({
                       {error}
                     </p>
                   )}
+                  {mode === "register" && (
+                    <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                      Use 8–72 characters with at least one letter and number.
+                    </p>
+                  )}
                   <button
                     type="button"
                     onClick={submitPassword}
                     disabled={loading || password.length === 0}
                     className="mt-4 h-11 w-full rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/85 disabled:pointer-events-none disabled:opacity-50"
                   >
-                    {loading ? "Logging in…" : "Log in"}
+                    {loading
+                      ? mode === "login"
+                        ? "Logging in…"
+                        : "Creating account…"
+                      : mode === "login"
+                        ? "Log in"
+                        : "Create account"}
                   </button>
                 </motion.div>
               )}

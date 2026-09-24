@@ -1,6 +1,6 @@
 # Authentication
 
-How sign-in works in Hacuba today: a standalone Go auth service owns
+How sign-in works in Hacuba: a standalone Go auth service owns
 identities and sessions, and the Next.js client surfaces it through a
 stepped login dialog backed by Redux.
 
@@ -10,7 +10,7 @@ stepped login dialog backed by Redux.
 Browser (Next.js client)
   -> AuthDialog (client/src/components/auth-dialog.tsx)
   -> Redux auth slice (client/src/lib/slices/auth.ts)
-  -> [TODO] Next.js route handler (proxy, preserves cookies)
+  -> Next.js route handler (proxy, preserves cookies)
   -> Go auth service (services/auth, :8080)
   -> Private Postgres auth-db (internal Docker network only)
 ```
@@ -63,26 +63,23 @@ JWT/session hash binding.
    to hide existence) **and** scope SQL with `WHERE owner_id = $1` using
    the JWT `sub`.
 
-## Frontend flow (current)
+## Frontend flow
 
 - Entry: profile menu in `navbar.tsx` -> "Log in / Sign up" opens
   `AuthDialog`.
 - Step 1 (email): client-side regex check, "Enter a valid email address
   to continue." on failure.
-- Step 2 (password): show/hide toggle, `Edit` returns to step 1,
-  Enter submits. Dispatches `loginWithPassword({email, password})`.
-- States: Redux `status` idle/loading/succeeded/failed; Escape or backdrop
-  click closes and clears errors. Signed-in menu shows "Signed in as
-  {email}" + "Log out" (`loggedOut()`).
+- Step 2 (password): show/hide toggle, `Edit` returns to step 1, and the
+  account mode switches between login and registration. Enter submits.
+- The Redux slice calls same-origin Next route handlers for register, login,
+  refresh, logout, and becoming a seller. The handlers proxy only the auth
+  request headers and preserve each `Set-Cookie` header for the browser.
+- The access JWT stays in Redux memory. On a browser reload, the readable CSRF
+  cookie permits a refresh request that rotates the HttpOnly refresh session.
+- States: Redux tracks idle/loading/authenticated/failed. Escape or backdrop
+  click closes and clears errors. The signed-in menu shows the API email and
+  buyer or seller role; logging out clears the server session and browser state.
 - Google button is present but disabled ("Coming soon").
-
-> Current gap: `loginWithPassword` in `slices/auth.ts` is a 600ms mock
-> that returns `{email}` without a network call. The TODO at the top of
-> that file is the contract: route through a Next.js route handler to
-> `POST /auth/login` / `POST /auth/register` so the `HttpOnly` refresh
-> cookie and CSRF pair stay intact (direct browser calls would break on
-> CORS). CSRF header handling and refresh rotation are not yet wired in
-> the client.
 
 ## Configuration
 
@@ -94,9 +91,13 @@ docker compose up --build
 # API on :8080, DB reachable ONLY at auth-db:5432 from the auth container
 ```
 
-Required: `DATABASE_URL` (private DSN), `JWT_SECRET` (min 32 bytes /
-64 hex chars). Optional: `PORT` (default 8080), `ACCESS_TTL=15m`,
-`REFRESH_TTL=168h`, `COOKIE_DOMAIN`, `COOKIE_SECURE`.
+Production requires `DATABASE_URL` (private DSN) and `JWT_SECRET` (min 32
+bytes / 64 hex chars). For persistent local development without Docker, set
+`DEV_SQLITE_PATH` instead of `DATABASE_URL`, use a local `JWT_SECRET`, and set
+`COOKIE_SECURE=false` for HTTP localhost. The SQLite schema is separate from
+the production migrations and is never selected when `DATABASE_URL` is set.
+Optional settings include `PORT` (default 8080), `ACCESS_TTL=15m`,
+`REFRESH_TTL=168h`, and `COOKIE_DOMAIN`.
 
 ## Verification
 

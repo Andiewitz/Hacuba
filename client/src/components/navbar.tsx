@@ -3,12 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Globe, LifeBuoy, LogIn, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import HacubaLogo from "@/components/hacuba-logo";
 import AuthDialog from "@/components/auth-dialog";
 import { useAppDispatch, useAppSelector } from "@/lib/hooks";
-import { loggedOut } from "@/lib/slices/auth";
+import { becomeSeller, logout, refreshSession } from "@/lib/slices/auth";
 
 const navItems = [
   { label: "All", emoji: "🌎", href: "/" },
@@ -35,11 +35,16 @@ function GitHubMark() {
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const dispatch = useAppDispatch();
-  const userEmail = useAppSelector((s) => s.auth.userEmail);
+  const { user, initialized, status } = useAppSelector((s) => s.auth);
   const [menuOpen, setMenuOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!initialized) dispatch(refreshSession());
+  }, [dispatch, initialized]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -62,6 +67,19 @@ export default function Navbar() {
   const openAuth = () => {
     setMenuOpen(false);
     setAuthOpen(true);
+  };
+
+  const openSellerWorkspace = async (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (!user) {
+      event.preventDefault();
+      openAuth();
+      return;
+    }
+    if (user.role === "seller") return;
+
+    event.preventDefault();
+    const result = await dispatch(becomeSeller());
+    if (becomeSeller.fulfilled.match(result)) router.push("/seller");
   };
 
   return (
@@ -103,9 +121,10 @@ export default function Navbar() {
         <div className="flex items-center gap-2">
           <Link
             href="/seller"
+            onClick={openSellerWorkspace}
             className="hidden lg:flex items-center gap-2 rounded-full border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:shadow-[var(--shadow-md)]"
           >
-            Become a seller
+            {user?.role === "seller" ? "My listings" : "Become a seller"}
           </Link>
           <button className="flex items-center justify-center rounded-full border border-border p-2.5 text-foreground transition-colors hover:shadow-md">
             <Globe className="h-4 w-4" />
@@ -120,9 +139,9 @@ export default function Navbar() {
             >
               <Menu className="h-4 w-4" />
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
-                {userEmail ? (
+                {user ? (
                   <span aria-hidden="true">
-                    {userEmail.charAt(0).toUpperCase()}
+                    {user.email.charAt(0).toUpperCase()}
                   </span>
                 ) : (
                   <svg
@@ -151,16 +170,19 @@ export default function Navbar() {
                   exit={{ opacity: 0, y: -6, scale: 0.98 }}
                   transition={{ duration: 0.15 }}
                 >
-                  {userEmail ? (
+                  {user ? (
                     <>
                       <p className="truncate px-4 pt-1 pb-2 text-xs text-muted-foreground">
-                        Signed in as {userEmail}
+                        Signed in as {user.email}
+                      </p>
+                      <p className="px-4 pb-2 text-xs text-muted-foreground">
+                        {user.role === "seller" ? "Seller account" : "Buyer account"}
                       </p>
                       <div className="mb-1 h-px bg-border" />
                       <button
                         role="menuitem"
                         onClick={() => {
-                          dispatch(loggedOut());
+                          dispatch(logout());
                           setMenuOpen(false);
                         }}
                         className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"
@@ -178,7 +200,7 @@ export default function Navbar() {
                         className="flex w-full items-center gap-3 px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-muted"
                       >
                         <LogIn className="h-4 w-4" />
-                        Log in / Sign up
+                        {status === "loading" ? "Checking account…" : "Log in / Sign up"}
                       </button>
                       <div className="my-1 h-px bg-border" />
                     </>

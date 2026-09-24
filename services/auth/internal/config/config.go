@@ -16,6 +16,9 @@ type Config struct {
 	// ever uses this value — the auth-db container lives on an
 	// internal Docker network unreachable from other services.
 	DatabaseURL string
+	// DevSQLitePath enables the persistent local-development store. It is
+	// mutually exclusive with DatabaseURL and is never used in production.
+	DevSQLitePath string
 
 	// JWTSecret signs access tokens. Must be >= 32 bytes.
 	JWTSecret []byte
@@ -73,14 +76,20 @@ func Load() (Config, error) {
 		secure = b
 	}
 
+	databaseURL, devSQLitePath := os.Getenv("DATABASE_URL"), os.Getenv("DEV_SQLITE_PATH")
+	if databaseURL != "" && devSQLitePath != "" {
+		return Config{}, fmt.Errorf("DATABASE_URL and DEV_SQLITE_PATH cannot both be set")
+	}
+
 	return Config{
-		Port:         getEnv("PORT", "8080"),
-		DatabaseURL:  os.Getenv("DATABASE_URL"),
-		JWTSecret:    []byte(secret),
-		AccessTTL:    accessTTL,
-		RefreshTTL:   refreshTTL,
-		CookieDomain: os.Getenv("COOKIE_DOMAIN"),
-		CookieSecure: secure,
+		Port:          getEnv("PORT", "8080"),
+		DatabaseURL:   databaseURL,
+		DevSQLitePath: devSQLitePath,
+		JWTSecret:     []byte(secret),
+		AccessTTL:     accessTTL,
+		RefreshTTL:    refreshTTL,
+		CookieDomain:  os.Getenv("COOKIE_DOMAIN"),
+		CookieSecure:  secure,
 	}, nil
 }
 
