@@ -208,6 +208,9 @@ server-side publishing validation. Image upload and registration remain Phase
 
 ### Phase 6C — Upload and register real property images
 
+**Status: implemented for development with a local object-store substitute.
+Production continues to use S3 presigned URLs and CloudFront image URLs.**
+
 - Have the seller form request a presigned image URL from Listings, upload each
   selected JPEG/PNG/WebP directly to object storage, then register the uploaded
   object with the Listings API.

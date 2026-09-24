@@ -12,6 +12,8 @@ import {
   draftPayload,
   emptySellerDraft,
   sellerRequest,
+  uploadListingImage,
+  type ListingImage,
   type OwnedListing,
   type SellerAPIError,
   type SellerDraft,
@@ -32,6 +34,7 @@ export default function SellerPage() {
   const [published, setPublished] = useState<OwnedListing>();
   const [photoPreview, setPhotoPreview] = useState<string>();
   const [photoNames, setPhotoNames] = useState<string[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<ListingImage[]>([]);
   const [formError, setFormError] = useState<string>();
   const [publishErrors, setPublishErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -44,11 +47,27 @@ export default function SellerPage() {
     setPublishErrors({});
   };
 
-  const selectPhotos = (event: ChangeEvent<HTMLInputElement>) => {
+  const selectPhotos = async (event: ChangeEvent<HTMLInputElement>) => {
     const photos = Array.from(event.target.files ?? []);
     setPhotoNames(photos.map((file) => file.name));
     setPhotoPreview(photos[0] ? URL.createObjectURL(photos[0]) : undefined);
-    setPublished(undefined);
+    if (!listingID || !accessToken || !csrfToken) {
+      setFormError("Save the draft first, then upload its property photos.");
+      return;
+    }
+    setSubmitting(true);
+    setFormError(undefined);
+    try {
+      const images: ListingImage[] = [];
+      for (const [index, file] of photos.entries()) {
+        images.push(await uploadListingImage(listingID, file, uploadedImages.length + index, accessToken, csrfToken));
+      }
+      setUploadedImages((current) => [...current, ...images]);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Couldn't upload the selected photos.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const sessionReady = Boolean(user?.role === "seller" && accessToken && csrfToken);
@@ -131,7 +150,7 @@ export default function SellerPage() {
   const completion = [
     { label: "Property basics", ready: Boolean(draft.propertyType && draft.title.trim() && draft.city.trim() && draft.price.trim() && draft.description.trim()) },
     { label: "Contact details", ready: Boolean(draft.sellerName.trim() && (draft.contactPhone.trim() || draft.contactEmail.trim())) },
-    { label: "Uploaded photos", ready: false },
+    { label: "Uploaded photos", ready: uploadedImages.length > 0 },
   ];
   const completedSteps = completion.filter((step) => step.ready).length;
 
@@ -165,7 +184,7 @@ export default function SellerPage() {
             </div></section>
             <section className="rounded-[var(--radius-lg)] bg-card p-6 shadow-[var(--shadow-md)] md:p-8"><p className="text-sm font-semibold text-[var(--color-terracotta-ink)]">02 — Details</p><h2 className="mt-2 font-heading text-[1.75rem] font-semibold leading-[1.25] tracking-[-0.005em] text-foreground">Price and specifications</h2><div className="mt-6 grid gap-6 md:grid-cols-2"><label className="text-sm font-semibold text-foreground">{draft.mode === "for_rent" ? "Monthly rent (PHP)" : "Asking price (PHP)"}<input className={inputClassName} value={draft.price} onChange={(event) => update("price", event.target.value)} inputMode="numeric" placeholder={draft.mode === "for_rent" ? "35,000" : "7,500,000"} /></label><label className="text-sm font-semibold text-foreground">Floor or lot area (m²)<input className={inputClassName} value={draft.area} onChange={(event) => update("area", event.target.value)} inputMode="decimal" placeholder="120" /></label><label className="text-sm font-semibold text-foreground">Bedrooms<input className={inputClassName} value={draft.bedrooms} onChange={(event) => update("bedrooms", event.target.value)} inputMode="numeric" placeholder="3" /></label><label className="text-sm font-semibold text-foreground">Bathrooms<input className={inputClassName} value={draft.bathrooms} onChange={(event) => update("bathrooms", event.target.value)} inputMode="numeric" placeholder="2" /></label><label className="text-sm font-semibold text-foreground md:col-span-2">Description<textarea className={`${inputClassName} min-h-36 resize-y`} value={draft.description} onChange={(event) => update("description", event.target.value)} placeholder="Describe the space, its condition, and the features that matter to buyers." /></label></div></section>
             <section className="rounded-[var(--radius-lg)] bg-card p-6 shadow-[var(--shadow-md)] md:p-8"><p className="text-sm font-semibold text-[var(--color-terracotta-ink)]">03 — Contact</p><h2 className="mt-2 font-heading text-[1.75rem] font-semibold leading-[1.25] tracking-[-0.005em] text-foreground">How buyers reach you</h2><p className="mt-3 max-w-[64ch] text-sm leading-6 text-muted-foreground">Hacuba helps buyers discover your listing. You arrange viewings, terms, and payment directly with them.</p><div className="mt-6 grid gap-6 md:grid-cols-2"><label className="text-sm font-semibold text-foreground md:col-span-2">Seller or agent name<input className={inputClassName} value={draft.sellerName} onChange={(event) => update("sellerName", event.target.value)} placeholder="Your name or agency" /></label><label className="text-sm font-semibold text-foreground">Phone number<input className={inputClassName} value={draft.contactPhone} onChange={(event) => update("contactPhone", event.target.value)} inputMode="tel" placeholder="+63 917 123 4567" /></label><label className="text-sm font-semibold text-foreground">Email address<input className={inputClassName} value={draft.contactEmail} onChange={(event) => update("contactEmail", event.target.value)} inputMode="email" placeholder="you@example.com" /></label></div></section>
-            <section className="rounded-[var(--radius-lg)] bg-card p-6 shadow-[var(--shadow-md)] md:p-8"><p className="text-sm font-semibold text-[var(--color-terracotta-ink)]">04 — Photos</p><h2 className="mt-2 font-heading text-[1.75rem] font-semibold leading-[1.25] tracking-[-0.005em] text-foreground">Preview your property photos</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Selected files improve this card preview only. Secure upload and registration are the next seller workflow step; Hacuba will not publish them before then.</p><input id="listing-photos" className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectPhotos} /><label htmlFor="listing-photos" className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-md)] border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground transition-shadow hover:shadow-[var(--shadow-sm)]"><ImagePlus className="h-4 w-4" aria-hidden="true" />Select photos for preview</label>{photoNames.length > 0 && <p className="mt-3 text-sm text-muted-foreground">{photoNames.length} photo{photoNames.length === 1 ? "" : "s"} selected for this browser preview.</p>}</section>
+            <section className="rounded-[var(--radius-lg)] bg-card p-6 shadow-[var(--shadow-md)] md:p-8"><p className="text-sm font-semibold text-[var(--color-terracotta-ink)]">04 — Photos</p><h2 className="mt-2 font-heading text-[1.75rem] font-semibold leading-[1.25] tracking-[-0.005em] text-foreground">Show the property clearly</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Save your draft first, then upload JPEG, PNG, or WebP photos. Each upload is registered to this listing before it can count toward publishing.</p><input id="listing-photos" className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectPhotos} /><label htmlFor="listing-photos" className="mt-6 inline-flex cursor-pointer items-center gap-2 rounded-[var(--radius-md)] border border-border bg-background px-4 py-3 text-sm font-semibold text-foreground transition-shadow hover:shadow-[var(--shadow-sm)]"><ImagePlus className="h-4 w-4" aria-hidden="true" />Upload photos</label>{photoNames.length > 0 && <p className="mt-3 text-sm text-muted-foreground">{uploadedImages.length} of {photoNames.length} selected photo{photoNames.length === 1 ? "" : "s"} uploaded and registered.</p>}</section>
             <div className="flex flex-col-reverse gap-3 rounded-[var(--radius-lg)] bg-[var(--color-forest-surface-1)] p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-[var(--text-body-on-dark)]">Draft data is saved to your seller account. Publishing waits for server validation.</p><div className="flex flex-col gap-3 sm:flex-row"><button type="submit" disabled={submitting} className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] border border-[var(--color-forest-border-strong)] px-5 py-3 text-sm font-semibold text-[var(--text-body-on-dark)] transition-colors hover:bg-[var(--color-forest-surface-2)] disabled:opacity-50"><Save className="h-4 w-4" aria-hidden="true" />{submitting ? "Saving…" : "Save draft"}</button><button type="button" disabled={submitting || !listingID} onClick={publish} className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] bg-[var(--color-terracotta)] px-5 py-3 text-sm font-semibold text-black transition-colors hover:bg-[var(--color-terracotta-hover)] disabled:opacity-50"><Send className="h-4 w-4" aria-hidden="true" />Publish listing</button></div></div>
           </form>
         </div>

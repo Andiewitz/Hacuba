@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hacuba/listings/internal/config"
@@ -43,6 +46,21 @@ func main() {
 			log.Fatalf("listings: image store: %v", err)
 		}
 		objects = s3Store
+	} else if cfg.DevSQLitePath != "" {
+		root := os.Getenv("DEV_UPLOAD_PATH")
+		if root == "" {
+			root = filepath.Join(filepath.Dir(cfg.DevSQLitePath), "uploads")
+		}
+		publicURL := os.Getenv("DEV_UPLOAD_URL")
+		if publicURL == "" {
+			publicURL = fmt.Sprintf("http://localhost:%s/dev-uploads", cfg.Port)
+		}
+		localStore, err := images.NewLocalStore(root, publicURL)
+		if err != nil {
+			log.Fatalf("listings: development image store: %v", err)
+		}
+		objects = localStore
+		log.Printf("listings: using development local image uploads at %s", root)
 	}
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: server.NewMuxWithObjects(cfg, store, objects), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	log.Printf("listings: listening on :%s", cfg.Port)

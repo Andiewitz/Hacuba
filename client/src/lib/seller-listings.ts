@@ -38,6 +38,12 @@ export type SellerDraft = {
 
 export type SellerAPIError = Error & { fields?: Record<string, string> };
 
+export type ListingImage = {
+  id: string;
+  object_key: string;
+  position: number;
+};
+
 export const emptySellerDraft: SellerDraft = {
   mode: "for_sale",
   propertyType: "",
@@ -144,4 +150,44 @@ export async function sellerRequest<T>(
     throw error;
   }
   return body as T;
+}
+
+export async function uploadListingImage(
+  listingID: string,
+  file: File,
+  position: number,
+  accessToken: string,
+  csrfToken: string,
+) {
+  const presigned = await sellerRequest<{ object_key: string; upload_url: string }>(
+    `/api/listings/${listingID}/images/presign`,
+    accessToken,
+    csrfToken,
+    {
+      method: "POST",
+      body: JSON.stringify({ content_type: file.type, byte_size: file.size }),
+    },
+  );
+  const upload = await fetch(presigned.upload_url, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!upload.ok) {
+    throw new Error("The image upload failed. Please try again.");
+  }
+  return sellerRequest<ListingImage>(
+    `/api/listings/${listingID}/images`,
+    accessToken,
+    csrfToken,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        object_key: presigned.object_key,
+        content_type: file.type,
+        byte_size: file.size,
+        position,
+      }),
+    },
+  );
 }
