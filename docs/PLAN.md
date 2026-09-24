@@ -157,32 +157,89 @@ stored object keys.
 
 ## Phase 6 — Search and seller experience
 
-**Status: seller workspace UI started; service mutations remain pending.**
-The browse search writes validated filter query parameters and category pages
-read the same filter shape. The seller page provides local draft persistence,
-photo-selection feedback, publish validation, a buyer-facing card preview, a
-seller dashboard, and a buyer-facing listing preview. Its server-side save,
-publish, and image actions will connect to the route handlers in this phase.
+**Status: public search and read-only listing pages are implemented. The seller
+workspace is presentation-only until this phase is complete.** Its current
+local-storage draft, preview, and publish state must never be presented as a
+published API listing.
 
-- Make the search controls write validated `city`, `min_price`, `max_price`,
-  `type`, and `mode` query parameters with `next/navigation`; pages read those
-  parameters server-side and call the public browse API.
-- Add Next route handlers for listings writes. They forward the browser cookie,
-  CSRF header, and in-memory access token to the listings service without
-  exposing service secrets to the browser.
-- Add “Become a seller,” “My listings,” create/edit draft, strict publish
-  feedback, image upload, close, unpublish, and archive flows.
-- Treat access tokens as memory-only client state. Route handlers use Next
-  16's async `cookies()` API for cookie forwarding.
+### Phase 6A — Replace mock client identity
+
+- Replace the mock login implementation with the auth service's real register,
+  login, refresh, logout, and become-seller requests.
+- Keep the access token in client memory. Forward the browser's refresh/CSRF
+  cookies through Next route handlers; do not put tokens in local storage.
+- Make the account UI report the authenticated email and seller role returned
+  by the auth service.
 
 **Tests**
 
-- Browser-level tests prove a copied search URL recreates the same filters.
-- Route-handler tests assert CSRF/cookie forwarding, backend error pass-through,
-  and no auth secret in response bodies.
-- End-to-end test: register, become seller, create an incomplete draft, see all
-  publish errors, upload/register an image, publish, find it publicly, and
-  verify another seller cannot edit it.
+- Verify login, logout, refresh, and become-seller against the auth service.
+- Verify an expired access token refreshes without exposing the refresh token to
+  client JavaScript.
+- Verify buyer accounts cannot enter seller-only API flows.
+
+### Phase 6B — Wire the seller workspace to Listings
+
+- Add Next route handlers for `POST /listings`, `PATCH /listings/{id}`, `GET
+  /me/listings`, and the publish, unpublish, close, and archive lifecycle
+  endpoints. Each handler forwards the browser authorization and CSRF headers
+  and returns the Listings API status and field errors unchanged.
+- Replace `hacuba:seller-draft` and `hacuba:published-listing` as sources of
+  truth. The seller form saves an API draft; the dashboard reads API listings;
+  publishing succeeds only after the Listings API returns success.
+- Make the preview use the draft returned by the API. A seller sees the public
+  listing URL only after successful publish.
+- Add field mapping between the form and the API contract, including listing
+  mode, PHP centavos, property-type-specific areas, seller name, phone, and
+  email.
+
+**Tests**
+
+- Route-handler tests assert authorization and CSRF forwarding, backend error
+  pass-through, and no service secret in responses.
+- Browser tests prove saving creates an API draft, reload retains it, and a
+  failed publish displays every server-side validation field.
+- Assert one seller cannot read, edit, publish, close, or archive another
+  seller's listing through the client route handlers.
+
+### Phase 6C — Upload and register real property images
+
+- Have the seller form request a presigned image URL from Listings, upload each
+  selected JPEG/PNG/WebP directly to object storage, then register the uploaded
+  object with the Listings API.
+- Show upload progress, failed-file recovery, ordering, and deletion in the
+  seller workspace. Do not mark a local file as a published image before its
+  object registration succeeds.
+- Read public image URLs from CloudFront in production and use development
+  image mappings only for local seeded records.
+
+**Tests**
+
+- Test presign, upload, registration, deletion, ordering, unsupported file
+  types, image-size limits, and failed object registration.
+- Browser test: upload images, publish, open the public URL, and navigate the
+  gallery backed by registered API images.
+
+### Phase 6D — Complete the real seller journey
+
+- Make “My listings” show API status, last update, and public URL for published
+  records. Add edit, unpublish, close, and archive controls backed by API
+  responses.
+- Preserve public contact details only on the detail endpoint. Buyers use the
+  seller's direct phone/email; Hacuba does not process transactions, payments,
+  or contracts.
+- Keep the search controls writing validated `city`, `min_price`, `max_price`,
+  `type`, and `mode` URL parameters so each public browse view remains
+  shareable.
+
+**Acceptance test**
+
+1. Register and become a seller.
+2. Create a draft and reload the browser; it remains in the API dashboard.
+3. Receive every missing-field error from a failed publish.
+4. Upload and register images, add direct contact details, and publish.
+5. Open the public listing, browse its gallery, and call/email the seller.
+6. Confirm a second seller receives `404` for every owner-scoped action.
 
 ## Phase 7 — Favorites and launch hardening
 
