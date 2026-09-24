@@ -53,9 +53,17 @@ const catalogue: ListingCardData[] = [
   { id: "catalogue-commercial-srp", image: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=900&h=675&fit=crop", propertyType: "Commercial", location: "South Road Properties", priceCentavos: 7_200_000, mode: "for_rent", areaSqm: 110 },
 ];
 
+const developmentImages: Record<string, string> = {
+  "development/lahug-house.jpg": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1800&h=1125&fit=crop",
+  "development/lahug-condo.jpg": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1800&h=1125&fit=crop",
+  "development/busay-lot.jpg": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1800&h=1125&fit=crop",
+};
+
 export function listingImageUrl(objectKey?: string) {
   const baseUrl = process.env.LISTINGS_IMAGE_BASE_URL?.replace(/\/$/, "");
-  return baseUrl && objectKey ? `${baseUrl}/${objectKey}` : undefined;
+  if (!objectKey) return undefined;
+  if (baseUrl) return `${baseUrl}/${objectKey}`;
+  return process.env.NODE_ENV === "development" ? developmentImages[objectKey] : undefined;
 }
 
 function toCard(listing: ListingDetail): ListingCardData {
