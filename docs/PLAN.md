@@ -180,6 +180,10 @@ published API listing.
 
 ### Phase 6B — Wire the seller workspace to Listings
 
+**Status: implemented for API-backed drafts, seller dashboard reads, and
+server-side publishing validation. Image upload and registration remain Phase
+6C, so a listing correctly stays a draft until it has registered images.**
+
 - Add Next route handlers for `POST /listings`, `PATCH /listings/{id}`, `GET
   /me/listings`, and the publish, unpublish, close, and archive lifecycle
   endpoints. Each handler forwards the browser authorization and CSRF headers
