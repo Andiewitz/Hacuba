@@ -58,6 +58,7 @@ export default function SellerListingsPage() {
           <section className="mt-8 grid gap-8 rounded-[var(--radius-lg)] border border-border bg-card p-6 shadow-[var(--shadow-md)] md:grid-cols-[minmax(0,360px)_1fr] md:p-8">
             <PropertyCard
               id="published-listing"
+              href={null}
               propertyType={listing.propertyType}
               location={location}
               priceCentavos={Number.isFinite(priceCentavos) ? priceCentavos : 0}

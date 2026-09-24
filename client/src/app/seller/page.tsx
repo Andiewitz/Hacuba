@@ -161,7 +161,7 @@ export default function SellerPage() {
               <p className="text-sm font-semibold text-[var(--text-secondary-on-dark)]">Buyer-facing card preview</p>
               <h2 id="preview-heading" className="mt-2 font-heading text-[1.75rem] font-semibold leading-[1.25] text-[var(--text-primary-on-dark)]">{draft.title || propertySummary}</h2>
               <div className="mt-6 max-w-sm rounded-[var(--radius-lg)] bg-background p-4">
-                <PropertyCard id="seller-preview" image={photoPreview} propertyType={draft.propertyType || "Property"} location={location} priceCentavos={Number.isFinite(priceCentavos) ? priceCentavos : 0} mode={draft.mode} bedrooms={Number.isInteger(Number(draft.bedrooms)) ? Number(draft.bedrooms) : undefined} bathrooms={Number.isInteger(Number(draft.bathrooms)) ? Number(draft.bathrooms) : undefined} areaSqm={Number.isFinite(Number(draft.area)) && Number(draft.area) > 0 ? Number(draft.area) : undefined} />
+                <PropertyCard id="seller-preview" href={null} image={photoPreview} propertyType={draft.propertyType || "Property"} location={location} priceCentavos={Number.isFinite(priceCentavos) ? priceCentavos : 0} mode={draft.mode} bedrooms={Number.isInteger(Number(draft.bedrooms)) ? Number(draft.bedrooms) : undefined} bathrooms={Number.isInteger(Number(draft.bathrooms)) ? Number(draft.bathrooms) : undefined} areaSqm={Number.isFinite(Number(draft.area)) && Number(draft.area) > 0 ? Number(draft.area) : undefined} />
               </div>
             </section>
           )}

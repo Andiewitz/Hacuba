@@ -20,14 +20,12 @@ export interface ListingFilters {
   mode?: ListingMode;
 }
 
-interface ListingsResponse {
-  listings: PublicListing[];
-}
-
-interface PublicListing {
+export interface ListingDetail {
   id: string;
   listing_mode: ListingMode;
   property_type: string;
+  title: string;
+  description: string;
   price_centavos: number;
   city: string;
   barangay?: string;
@@ -36,6 +34,10 @@ interface PublicListing {
   floor_area_sqm?: number;
   lot_area_sqm?: number;
   images?: Array<{ object_key: string }>;
+}
+
+interface ListingsResponse {
+  listings: ListingDetail[];
 }
 
 const catalogue: ListingCardData[] = [
@@ -51,15 +53,15 @@ const catalogue: ListingCardData[] = [
   { id: "catalogue-commercial-srp", image: "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=900&h=675&fit=crop", propertyType: "Commercial", location: "South Road Properties", priceCentavos: 7_200_000, mode: "for_rent", areaSqm: 110 },
 ];
 
-function imageUrl(objectKey?: string) {
+export function listingImageUrl(objectKey?: string) {
   const baseUrl = process.env.LISTINGS_IMAGE_BASE_URL?.replace(/\/$/, "");
   return baseUrl && objectKey ? `${baseUrl}/${objectKey}` : undefined;
 }
 
-function toCard(listing: PublicListing): ListingCardData {
+function toCard(listing: ListingDetail): ListingCardData {
   return {
     id: listing.id,
-    image: imageUrl(listing.images?.[0]?.object_key),
+    image: listingImageUrl(listing.images?.[0]?.object_key),
     propertyType: listing.property_type,
     location: [listing.barangay, listing.city].filter(Boolean).join(", "),
     priceCentavos: listing.price_centavos,
@@ -67,6 +69,23 @@ function toCard(listing: PublicListing): ListingCardData {
     bedrooms: listing.bedrooms,
     bathrooms: listing.bathrooms,
     areaSqm: listing.floor_area_sqm ?? listing.lot_area_sqm,
+  };
+}
+
+function fixtureDetail(listing: ListingCardData): ListingDetail {
+  const [barangay, city] = listing.location.split(", ");
+  return {
+    id: listing.id,
+    listing_mode: listing.mode,
+    property_type: listing.propertyType,
+    title: `${listing.propertyType} in ${listing.location}`,
+    description: "This development listing is available to view while the listings service is not configured.",
+    price_centavos: listing.priceCentavos,
+    city: city ?? listing.location,
+    barangay,
+    bedrooms: listing.bedrooms,
+    bathrooms: listing.bathrooms,
+    floor_area_sqm: listing.areaSqm,
   };
 }
 
@@ -108,5 +127,24 @@ export async function getPublicListings(filters: ListingFilters = {}) {
     return data.listings.map(toCard);
   } catch {
     return [];
+  }
+}
+
+export async function getPublicListing(id: string) {
+  const apiUrl = process.env.LISTINGS_API_URL;
+  if (!apiUrl) {
+    const listing = catalogue.find((item) => item.id === id);
+    return listing ? fixtureDetail(listing) : null;
+  }
+
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/listings/${encodeURIComponent(id)}`, {
+      next: { revalidate: 60 },
+    });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error("listing request failed");
+    return (await response.json()) as ListingDetail;
+  } catch {
+    return null;
   }
 }

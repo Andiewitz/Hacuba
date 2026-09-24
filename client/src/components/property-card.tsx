@@ -1,5 +1,6 @@
 import { Bath, BedDouble, Ruler } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
 interface PropertyCardProps {
   id: string;
@@ -12,6 +13,7 @@ interface PropertyCardProps {
   bathrooms?: number;
   areaSqm?: number;
   priority?: boolean;
+  href?: string | null;
 }
 
 const peso = new Intl.NumberFormat("en-PH", {
@@ -21,6 +23,7 @@ const peso = new Intl.NumberFormat("en-PH", {
 });
 
 export default function PropertyCard({
+  id,
   image,
   propertyType,
   location,
@@ -30,11 +33,13 @@ export default function PropertyCard({
   bathrooms,
   areaSqm,
   priority = false,
+  href,
 }: PropertyCardProps) {
   const hasSpecs = bedrooms !== undefined || bathrooms !== undefined || areaSqm !== undefined;
+  const destination = href === undefined ? `/listings/${id}` : href;
 
-  return (
-    <article className="group flex flex-col gap-3">
+  const content = (
+    <article className="flex flex-col gap-3">
       <div className="relative aspect-[4/3] overflow-hidden rounded-[var(--radius-lg)] bg-card shadow-[var(--shadow-sm)]">
         {image ? (
           <Image
@@ -87,5 +92,16 @@ export default function PropertyCard({
         )}
       </div>
     </article>
+  );
+
+  if (!destination) return content;
+
+  return (
+    <Link
+      href={destination}
+      className="group block rounded-[var(--radius-lg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+    >
+      {content}
+    </Link>
   );
 }
