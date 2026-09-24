@@ -229,6 +229,9 @@ Production continues to use S3 presigned URLs and CloudFront image URLs.**
 
 ### Phase 6D — Complete the real seller journey
 
+**Status: implemented for API-backed listing status, edit links, public URLs,
+unpublish, close, and archive controls.**
+
 - Make “My listings” show API status, last update, and public URL for published
   records. Add edit, unpublish, close, and archive controls backed by API
   responses.
