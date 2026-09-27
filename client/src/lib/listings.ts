@@ -43,6 +43,8 @@ interface ListingsResponse {
   listings: ListingDetail[];
 }
 
+export type DiscoverySection = { id: string; title: string; reason: string; listings: ListingCardData[] };
+
 const catalogue: ListingCardData[] = [
   { id: "catalogue-home-mabolo", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&h=675&fit=crop", propertyType: "House", location: "Mabolo, Cebu City", priceCentavos: 485_000_000, mode: "for_sale", bedrooms: 4, bathrooms: 3, areaSqm: 210 },
   { id: "catalogue-home-lahug", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=900&h=675&fit=crop", propertyType: "Condo", location: "Lahug, Cebu City", priceCentavos: 3_800_000, mode: "for_rent", bedrooms: 2, bathrooms: 2, areaSqm: 74 },
@@ -145,6 +147,23 @@ export async function getPublicListings(filters: ListingFilters = {}) {
   } catch {
     return [];
   }
+}
+
+export async function getDiscovery(filters: ListingFilters = {}): Promise<DiscoverySection[]> {
+  const apiUrl = process.env.LISTINGS_API_URL;
+  if (!apiUrl) return [{ id: "new", title: "Newly listed", reason: "Fresh properties added to Hacuba.", listings: fixtureListings(filters) }];
+  const query = new URLSearchParams();
+  if (filters.city) query.set("city", filters.city);
+  if (filters.propertyType) query.set("type", filters.propertyType.toLowerCase());
+  if (filters.mode) query.set("mode", filters.mode);
+  if (filters.minPrice !== undefined) query.set("min_price", String(filters.minPrice));
+  if (filters.maxPrice !== undefined) query.set("max_price", String(filters.maxPrice));
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/discover?${query}`, { next: { revalidate: 60 } });
+    if (!response.ok) return [];
+    const data = await response.json() as { sections: Array<{ id: string; title: string; reason: string; listings: ListingDetail[] }> };
+    return data.sections.map((section) => ({ ...section, listings: section.listings.map(toCard) }));
+  } catch { return []; }
 }
 
 export async function getPublicListing(id: string) {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -368,6 +369,115 @@ func (h Handler) ListPublic(w http.ResponseWriter, r *http.Request) {
 		next = encodeCursor(items[len(items)-1], f.Sort)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"listings": response, "next_cursor": next})
+}
+
+func (h Handler) Discover(w http.ResponseWriter, r *http.Request) {
+	f, fields := parseFilter(r)
+	if len(fields) > 0 {
+		badRequest(w, fields)
+		return
+	}
+	f.Cursor, f.Limit = nil, 6
+	type section struct {
+		ID       string `json:"id"`
+		Title    string `json:"title"`
+		Reason   string `json:"reason"`
+		Listings []any  `json:"listings"`
+	}
+	sections := []section{}
+	add := func(id, title, reason string, filter listings.ListFilter) bool {
+		items, err := h.Store.ListPublished(r.Context(), filter)
+		if err != nil {
+			internalError(w)
+			return false
+		}
+		cards := make([]any, 0, len(items))
+		for _, item := range items {
+			images, err := h.Store.ListImages(r.Context(), item.ID)
+			if err != nil {
+				internalError(w)
+				return false
+			}
+			item.SellerName, item.ContactPhone, item.ContactEmail = "", "", ""
+			cards = append(cards, publicDetail{Listing: item, Images: images})
+		}
+		if len(cards) > 0 {
+			sections = append(sections, section{ID: id, Title: title, Reason: reason, Listings: cards})
+		}
+		return true
+	}
+	if !add("new", "Newly listed", "Fresh properties added to Hacuba.", listings.ListFilter{Sort: "newest", Limit: 6}) {
+		return
+	}
+	if f.City != "" && !add("city", "In "+f.City, "Published properties in your selected city.", f) {
+		return
+	}
+	if f.Type != "" && !add("type", "More "+f.Type+" listings", "Matches your property type.", f) {
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"sections": sections})
+}
+
+func (h Handler) Related(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	source, err := h.Store.GetPublished(r.Context(), id)
+	if errors.Is(err, listings.ErrNotFound) {
+		notFound(w)
+		return
+	}
+	if err != nil {
+		internalError(w)
+		return
+	}
+	candidates, err := h.Store.ListPublished(r.Context(), listings.ListFilter{Type: source.PropertyType, City: source.City, Sort: "newest", Limit: 24})
+	if err != nil {
+		internalError(w)
+		return
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		return relatedScore(candidates[i], *source) > relatedScore(candidates[j], *source)
+	})
+	response := make([]any, 0, 6)
+	for _, item := range candidates {
+		if item.ID == source.ID {
+			continue
+		}
+		images, err := h.Store.ListImages(r.Context(), item.ID)
+		if err != nil {
+			internalError(w)
+			return
+		}
+		item.SellerName, item.ContactPhone, item.ContactEmail = "", "", ""
+		response = append(response, publicDetail{Listing: item, Images: images})
+		if len(response) == 6 {
+			break
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"reason": "Similar " + source.PropertyType + " listings in " + source.City, "listings": response})
+}
+
+func relatedScore(candidate, source listings.Listing) int64 {
+	score := int64(0)
+	if candidate.City == source.City {
+		score += 100
+	}
+	if candidate.PropertyType == source.PropertyType {
+		score += 80
+	}
+	if candidate.PriceCentavos != nil && source.PriceCentavos != nil {
+		delta := *candidate.PriceCentavos - *source.PriceCentavos
+		if delta < 0 {
+			delta = -delta
+		}
+		score -= delta / 1_000_000
+	}
+	if candidate.Bedrooms != nil && source.Bedrooms != nil && *candidate.Bedrooms == *source.Bedrooms {
+		score += 20
+	}
+	return score
 }
 
 func (h Handler) ListMine(w http.ResponseWriter, r *http.Request) {

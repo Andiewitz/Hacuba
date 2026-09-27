@@ -6,12 +6,14 @@ import type { ListingCardData } from "@/lib/listings";
 
 interface ListingSectionProps {
   title: string;
+  reason?: string;
   listings: ListingCardData[];
   sectionIndex?: number;
 }
 
 export default function ListingSection({
   title,
+  reason,
   listings,
   sectionIndex = 0,
 }: ListingSectionProps) {
@@ -28,6 +30,7 @@ export default function ListingSection({
           <h2 className="font-heading text-[2.25rem] font-semibold leading-[1.2] tracking-[-0.01em] text-foreground">
             {title}
           </h2>
+          {reason && <p className="mt-2 text-sm leading-6 text-muted-foreground">{reason}</p>}
         </motion.div>
 
         {listings.length === 0 ? (

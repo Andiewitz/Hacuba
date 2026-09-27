@@ -1,7 +1,7 @@
 import ListingSection from "@/components/listing-section";
 import SearchBar from "@/components/search-bar";
 import { listingFiltersFromSearchParams } from "@/lib/listing-filters";
-import { getPublicListings } from "@/lib/listings";
+import { getDiscovery } from "@/lib/listings";
 
 type HomeProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -9,7 +9,7 @@ type HomeProps = {
 
 export default async function Home({ searchParams }: HomeProps) {
   const filters = listingFiltersFromSearchParams(await searchParams);
-  const listings = await getPublicListings(filters);
+  const sections = await getDiscovery(filters);
 
   return (
     <main className="min-h-screen bg-background pb-16">
@@ -28,7 +28,7 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
       </section>
 
-      <ListingSection title="Properties in Cebu" listings={listings} sectionIndex={0} />
+      {sections.map((section, index) => <ListingSection key={section.id} title={section.title} reason={section.reason} listings={section.listings} sectionIndex={index} />)}
     </main>
   );
 }
