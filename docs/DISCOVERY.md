@@ -15,7 +15,7 @@ source of truth for publication state, price, location, and gallery data.
   ordering, and case-insensitive partial search of title, city, and barangay.
 - Only `published` listings are indexed as public discovery candidates.
 
-## Phase 2 — Interaction capture
+## Phase 2 — Interaction capture and aggregation
 
 Add a rate-limited, batched `POST /discovery/events` endpoint. Record only a
 rotating anonymous viewer ID or an authenticated account ID, listing ID, event
@@ -23,10 +23,13 @@ type, search context, and timestamp. Event types are impression, card click,
 detail view, favorite, and contact reveal. Never store raw IP addresses as a
 recommendation feature.
 
-Create `discovery_events`, `listing_metrics_daily`, and
-`discovery_profiles`. A background worker aggregates raw events into daily
-listing metrics and derives broad viewer preferences such as city, property
-type, price band, and bedroom range.
+`discovery_events`, `listing_metrics_daily`, and `discovery_profiles` are
+implemented. `cmd/discovery-worker` claims events with `FOR UPDATE SKIP
+LOCKED`, updates daily listing counters, marks raw rows aggregated, and
+derives a 30-day anonymous preference profile (city, property type, median
+price, and median bedrooms). It needs a PostgreSQL `DATABASE_URL`; the
+SQLite development store deliberately does not pretend to support the
+production aggregation worker.
 
 ## Phase 3 — Candidate generation and ranking
 

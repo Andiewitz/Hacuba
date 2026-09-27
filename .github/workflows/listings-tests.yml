@@ -21,6 +21,35 @@ jobs:
       - run: go vet ./...
       - run: go test -race -count=1 ./...
 
+  postgres:
+    name: integration (real postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: listings
+          POSTGRES_USER: listings_service
+          POSTGRES_PASSWORD: testpw
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U listings_service -d listings"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    defaults:
+      run:
+        working-directory: services/listings
+    env:
+      TEST_DATABASE_URL: postgres://listings_service:testpw@localhost:5432/listings?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: services/listings/go.sum
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+
   smoke:
     runs-on: ubuntu-latest
     defaults:
