@@ -90,4 +90,12 @@ func TestPostgresDiscoveryAggregation(t *testing.T) {
 	if city != "Cebu City" || propertyType != TypeHouse {
 		t.Fatalf("profile = city:%q property_type:%q", city, propertyType)
 	}
+	profile, err := store.GetDiscoveryProfile(ctx, viewerID)
+	if err != nil || profile.City != "Cebu City" || profile.PropertyType != TypeHouse || profile.PriceCentavos == nil || *profile.PriceCentavos != price || profile.Bedrooms == nil || *profile.Bedrooms != bedrooms {
+		t.Fatalf("load profile = %#v, %v", profile, err)
+	}
+	viewed, err := store.ListViewedListingIDs(ctx, viewerID)
+	if err != nil || len(viewed) != 1 || viewed[0] != listingID {
+		t.Fatalf("viewed listing IDs = %#v, %v", viewed, err)
+	}
 }

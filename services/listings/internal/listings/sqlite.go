@@ -255,6 +255,62 @@ func (s *SQLiteStore) RecordDiscoveryEvents(ctx context.Context, events []Discov
 	return inserted, nil
 }
 
+func (s *SQLiteStore) GetDiscoveryProfile(ctx context.Context, viewerID uuid.UUID) (DiscoveryProfile, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT listing_id, event_type, created_at FROM dev_discovery_events WHERE viewer_id=?`, viewerID.String())
+	if err != nil {
+		return DiscoveryProfile{}, err
+	}
+	defer rows.Close()
+	samples := []discoveryProfileSample{}
+	for rows.Next() {
+		var listingRaw, eventType, createdRaw string
+		if err := rows.Scan(&listingRaw, &eventType, &createdRaw); err != nil {
+			return DiscoveryProfile{}, err
+		}
+		listingID, err := uuid.Parse(listingRaw)
+		if err != nil {
+			return DiscoveryProfile{}, err
+		}
+		listing, err := s.readListing(ctx, listingID)
+		if errors.Is(err, ErrNotFound) || (err == nil && listing.Status != StatusPublished) {
+			continue
+		}
+		if err != nil {
+			return DiscoveryProfile{}, err
+		}
+		createdAt, err := time.Parse(time.RFC3339Nano, createdRaw)
+		if err != nil {
+			return DiscoveryProfile{}, err
+		}
+		samples = append(samples, discoveryProfileSample{Listing: *listing, EventType: eventType, CreatedAt: createdAt})
+	}
+	if err := rows.Err(); err != nil {
+		return DiscoveryProfile{}, err
+	}
+	return discoveryProfileFromSamples(viewerID, samples)
+}
+
+func (s *SQLiteStore) ListViewedListingIDs(ctx context.Context, viewerID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT listing_id FROM dev_discovery_events WHERE viewer_id=? AND created_at>=? AND event_type IN ('card_click', 'detail_view', 'favorite', 'contact_reveal') ORDER BY listing_id LIMIT 200`, viewerID.String(), time.Now().UTC().AddDate(0, 0, -30).Format(time.RFC3339Nano))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []uuid.UUID{}
+	for rows.Next() {
+		var raw string
+		if err := rows.Scan(&raw); err != nil {
+			return nil, err
+		}
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func (s *SQLiteStore) writeListing(ctx context.Context, listing Listing) error {
 	raw, err := json.Marshal(listing)
 	if err != nil {

@@ -1,4 +1,5 @@
 import ListingSection from "@/components/listing-section";
+import { cookies } from "next/headers";
 import SearchBar from "@/components/search-bar";
 import { listingFiltersFromSearchParams } from "@/lib/listing-filters";
 import { getDiscovery } from "@/lib/listings";
@@ -9,7 +10,8 @@ type HomeProps = {
 
 export default async function Home({ searchParams }: HomeProps) {
   const filters = listingFiltersFromSearchParams(await searchParams);
-  const sections = await getDiscovery(filters);
+  const viewerID = (await cookies()).get("hacuba_discovery_id")?.value;
+  const sections = await getDiscovery(filters, viewerID);
 
   return (
     <main className="min-h-screen bg-background pb-16">

@@ -9,13 +9,14 @@ import (
 // Config contains only settings owned by the listings service. It never
 // receives auth-db credentials; JWT verification uses the shared secret.
 type Config struct {
-	Port          string
-	DatabaseURL   string
-	DevSQLitePath string
-	JWTSecret     []byte
-	CacheTTL      time.Duration
-	S3Region      string
-	S3Bucket      string
+	Port                 string
+	DatabaseURL          string
+	DevSQLitePath        string
+	JWTSecret            []byte
+	CacheTTL             time.Duration
+	S3Region             string
+	S3Bucket             string
+	DiscoveryProxySecret []byte
 }
 
 func Load() (Config, error) {
@@ -34,5 +35,5 @@ func Load() (Config, error) {
 	if databaseURL == "" && devSQLitePath == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required unless DEV_SQLITE_PATH is explicitly set for development")
 	}
-	return Config{Port: port, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), CacheTTL: 5 * time.Minute, S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET")}, nil
+	return Config{Port: port, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), CacheTTL: 5 * time.Minute, S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET"), DiscoveryProxySecret: []byte(os.Getenv("DISCOVERY_PROXY_SECRET"))}, nil
 }

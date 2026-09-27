@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -20,9 +21,22 @@ import (
 )
 
 type Handler struct {
-	Store   listings.Store
-	Objects images.ObjectStore
+	Store                listings.Store
+	Objects              images.ObjectStore
+	DiscoveryProxySecret []byte
 }
+
+type discoverySection struct {
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Reason   string `json:"reason"`
+	Listings []any  `json:"listings"`
+}
+
+const (
+	discoveryProxyHeader  = "X-Hacuba-Discovery-Proxy"
+	discoveryViewerHeader = "X-Hacuba-Viewer-ID"
+)
 
 type discoveryRateWindow struct {
 	started  time.Time
@@ -415,13 +429,7 @@ func (h Handler) Discover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	f.Cursor, f.Limit = nil, 6
-	type section struct {
-		ID       string `json:"id"`
-		Title    string `json:"title"`
-		Reason   string `json:"reason"`
-		Listings []any  `json:"listings"`
-	}
-	sections := []section{}
+	sections := []discoverySection{}
 	add := func(id, title, reason string, filter listings.ListFilter) bool {
 		items, err := h.Store.ListPublished(r.Context(), filter)
 		if err != nil {
@@ -439,12 +447,29 @@ func (h Handler) Discover(w http.ResponseWriter, r *http.Request) {
 			cards = append(cards, publicDetail{Listing: item, Images: images})
 		}
 		if len(cards) > 0 {
-			sections = append(sections, section{ID: id, Title: title, Reason: reason, Listings: cards})
+			sections = append(sections, discoverySection{ID: id, Title: title, Reason: reason, Listings: cards})
 		}
 		return true
 	}
 	if !add("new", "Newly listed", "Fresh properties added to Hacuba.", listings.ListFilter{Sort: "newest", Limit: 6}) {
 		return
+	}
+	if viewerID, ok := h.trustedDiscoveryViewer(r); ok {
+		profile, err := h.Store.GetDiscoveryProfile(r.Context(), viewerID)
+		if err != nil && !errors.Is(err, listings.ErrNotFound) {
+			internalError(w)
+			return
+		}
+		if err == nil {
+			viewed, err := h.Store.ListViewedListingIDs(r.Context(), viewerID)
+			if err != nil {
+				internalError(w)
+				return
+			}
+			if !h.addPersonalizedDiscovery(w, r, &sections, profile, viewed) {
+				return
+			}
+		}
 	}
 	if f.City != "" && !add("city", "In "+f.City, "Published properties in your selected city.", f) {
 		return
@@ -453,6 +478,98 @@ func (h Handler) Discover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"sections": sections})
+}
+
+func (h Handler) trustedDiscoveryViewer(r *http.Request) (uuid.UUID, bool) {
+	if len(h.DiscoveryProxySecret) == 0 || subtle.ConstantTimeCompare([]byte(r.Header.Get(discoveryProxyHeader)), h.DiscoveryProxySecret) != 1 {
+		return uuid.Nil, false
+	}
+	viewerID, err := uuid.Parse(r.Header.Get(discoveryViewerHeader))
+	if err != nil || viewerID == uuid.Nil {
+		return uuid.Nil, false
+	}
+	return viewerID, true
+}
+
+func (h Handler) addPersonalizedDiscovery(w http.ResponseWriter, r *http.Request, sections *[]discoverySection, profile listings.DiscoveryProfile, viewed []uuid.UUID) bool {
+	filter := listings.ListFilter{City: profile.City, Type: profile.PropertyType, Sort: "newest", Limit: 24}
+	if profile.PriceCentavos != nil {
+		min, max := *profile.PriceCentavos*70/100, *profile.PriceCentavos*130/100
+		filter.MinPrice, filter.MaxPrice = &min, &max
+	}
+	candidates, err := h.Store.ListPublished(r.Context(), filter)
+	if err != nil {
+		internalError(w)
+		return false
+	}
+	seen := make(map[uuid.UUID]struct{}, len(viewed))
+	for _, id := range viewed {
+		seen[id] = struct{}{}
+	}
+	filtered := make([]listings.Listing, 0, len(candidates))
+	for _, candidate := range candidates {
+		if _, ok := seen[candidate.ID]; !ok {
+			filtered = append(filtered, candidate)
+		}
+	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		left, right := personalizedScore(filtered[i], profile), personalizedScore(filtered[j], profile)
+		if left == right {
+			return filtered[i].ID.String() < filtered[j].ID.String()
+		}
+		return left > right
+	})
+	cards := make([]any, 0, 6)
+	for _, item := range filtered {
+		images, err := h.Store.ListImages(r.Context(), item.ID)
+		if err != nil {
+			internalError(w)
+			return false
+		}
+		item.SellerName, item.ContactPhone, item.ContactEmail = "", "", ""
+		cards = append(cards, publicDetail{Listing: item, Images: images})
+		if len(cards) == 6 {
+			break
+		}
+	}
+	if len(cards) > 0 {
+		*sections = append(*sections, discoverySection{ID: "for-you", Title: "For you", Reason: discoveryProfileReason(profile), Listings: cards})
+	}
+	return true
+}
+
+func personalizedScore(candidate listings.Listing, profile listings.DiscoveryProfile) int64 {
+	score := int64(0)
+	if candidate.City == profile.City {
+		score += 100
+	}
+	if candidate.PropertyType == profile.PropertyType {
+		score += 80
+	}
+	if candidate.PriceCentavos != nil && profile.PriceCentavos != nil {
+		delta := *candidate.PriceCentavos - *profile.PriceCentavos
+		if delta < 0 {
+			delta = -delta
+		}
+		score -= delta / 1_000_000
+	}
+	if candidate.Bedrooms != nil && profile.Bedrooms != nil && *candidate.Bedrooms == *profile.Bedrooms {
+		score += 20
+	}
+	if candidate.PublishedAt != nil && candidate.PublishedAt.After(time.Now().UTC().AddDate(0, 0, -14)) {
+		score += 10
+	}
+	return score
+}
+
+func discoveryProfileReason(profile listings.DiscoveryProfile) string {
+	if profile.City != "" && profile.PropertyType != "" {
+		return "Based on properties you explored in " + profile.City + "."
+	}
+	if profile.City != "" {
+		return "Based on properties you explored in " + profile.City + "."
+	}
+	return "Based on properties you explored on Hacuba."
 }
 
 func (h Handler) Related(w http.ResponseWriter, r *http.Request) {

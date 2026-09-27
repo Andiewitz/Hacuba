@@ -43,6 +43,14 @@ Every response includes a short reason suitable for the UI, such as “Similar
 homes in Cebu City.” Ranking snapshots and feature flags make score changes
 auditable and reversible.
 
+**Current implementation:** `/discover` has newest, filter-matched, and a
+server-authenticated anonymous `For you` section. The Next server forwards an
+HttpOnly viewer UUID only when both services share `DISCOVERY_PROXY_SECRET`;
+direct callers cannot select a viewer profile. The personalized section ranks
+city, property type, budget proximity, bedroom match, and freshness, then
+removes recently viewed listings. New and filtered sections remain available
+when no profile exists.
+
 ## Phase 4 — Product surfaces
 
 Use discovery sections for newly listed properties, matching city/type views,

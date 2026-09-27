@@ -17,7 +17,7 @@ func NewMux(cfg config.Config, store listings.Store) http.Handler {
 // NewMuxWithObjects injects S3 only in deployments that configure it; tests
 // and local API work can still exercise every non-image route without AWS.
 func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.ObjectStore) http.Handler {
-	h := handlers.Handler{Store: store, Objects: objects}
+	h := handlers.Handler{Store: store, Objects: objects, DiscoveryProxySecret: cfg.DiscoveryProxySecret}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

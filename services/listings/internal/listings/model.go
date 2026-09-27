@@ -128,3 +128,14 @@ type DiscoveryEvent struct {
 	Query     string
 	CreatedAt time.Time
 }
+
+// DiscoveryProfile contains broad preferences derived from one anonymous
+// browser's recent meaningful interactions. It never contains an IP address,
+// account data, or a raw event stream.
+type DiscoveryProfile struct {
+	ViewerID      uuid.UUID
+	City          string
+	PropertyType  string
+	PriceCentavos *int64
+	Bedrooms      *int16
+}

@@ -269,6 +269,66 @@ func TestDiscoveryEventsRateLimit(t *testing.T) {
 	}
 }
 
+func TestDiscoveryPersonalizationRequiresProxySecretAndExcludesViewed(t *testing.T) {
+	store := listings.NewMemoryStore()
+	owner, viewer := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	price := func(value int64) *int64 { return &value }
+	beds := func(value int16) *int16 { return &value }
+	now := time.Now().UTC()
+	viewedID, bestID, otherID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	for _, listing := range []listings.Listing{
+		{ID: viewedID, OwnerID: owner, ListingMode: listings.ModeSale, PropertyType: listings.TypeHouse, Title: "Viewed Cebu house", Description: "Viewed listing used for personalized discovery coverage.", PriceCentavos: price(750_000_000), Currency: "PHP", City: "Cebu City", Bedrooms: beds(3), Status: listings.StatusPublished, PublishedAt: &now},
+		{ID: bestID, OwnerID: owner, ListingMode: listings.ModeSale, PropertyType: listings.TypeHouse, Title: "Matching Cebu house", Description: "Closest candidate used for personalized discovery coverage.", PriceCentavos: price(750_000_000), Currency: "PHP", City: "Cebu City", Bedrooms: beds(3), Status: listings.StatusPublished, PublishedAt: &now},
+		{ID: otherID, OwnerID: owner, ListingMode: listings.ModeSale, PropertyType: listings.TypeHouse, Title: "Other Cebu house", Description: "Lower ranked candidate used for personalized discovery coverage.", PriceCentavos: price(900_000_000), Currency: "PHP", City: "Cebu City", Bedrooms: beds(2), Status: listings.StatusPublished, PublishedAt: &now},
+	} {
+		if _, err := store.Create(t.Context(), listing); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if accepted, err := store.RecordDiscoveryEvents(t.Context(), []listings.DiscoveryEvent{{ID: uuid.Must(uuid.NewV7()), ViewerID: viewer, ListingID: viewedID, EventType: listings.DiscoveryDetailView, CreatedAt: now}}); err != nil || accepted != 1 {
+		t.Fatalf("record discovery event = %d, %v", accepted, err)
+	}
+	secret := []byte("discovery-proxy-secret-used-for-tests")
+	mux := server.NewMux(config.Config{JWTSecret: []byte("listings-test-secret-must-be-32-bytes!!"), DiscoveryProxySecret: secret}, store)
+	get := func(proxySecret string) string {
+		req := httptest.NewRequest(http.MethodGet, "/discover", nil)
+		req.Header.Set("X-Hacuba-Viewer-ID", viewer.String())
+		if proxySecret != "" {
+			req.Header.Set("X-Hacuba-Discovery-Proxy", proxySecret)
+		}
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("discover = %d: %s", rec.Code, rec.Body.String())
+		}
+		return rec.Body.String()
+	}
+	if body := get("wrong-secret"); strings.Contains(body, `"id":"for-you"`) {
+		t.Fatalf("untrusted request received a personalized section: %s", body)
+	}
+	var result struct {
+		Sections []struct {
+			ID       string `json:"id"`
+			Listings []struct {
+				ID uuid.UUID `json:"id"`
+			} `json:"listings"`
+		} `json:"sections"`
+	}
+	if err := json.Unmarshal([]byte(get(string(secret))), &result); err != nil {
+		t.Fatal(err)
+	}
+	for _, section := range result.Sections {
+		if section.ID != "for-you" {
+			continue
+		}
+		if len(section.Listings) != 2 || section.Listings[0].ID != bestID || section.Listings[1].ID != otherID {
+			t.Fatalf("for-you results = %#v", section.Listings)
+		}
+		return
+	}
+	t.Fatalf("personalized section missing: %#v", result.Sections)
+}
+
 func sellerToken(t *testing.T, secret []byte, id uuid.UUID) (string, string) {
 	t.Helper()
 	csrf := "csrf-value-" + id.String()

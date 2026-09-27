@@ -224,6 +224,40 @@ func (s *PostgresStore) RecordDiscoveryEvents(ctx context.Context, events []Disc
 	}
 	return inserted, nil
 }
+
+func (s *PostgresStore) GetDiscoveryProfile(ctx context.Context, viewerID uuid.UUID) (DiscoveryProfile, error) {
+	profile := DiscoveryProfile{ViewerID: viewerID}
+	err := s.pool.QueryRow(ctx, `SELECT
+		COALESCE(preferences->>'city', ''),
+		COALESCE(preferences->>'property_type', ''),
+		NULLIF(preferences->>'price_centavos', '')::bigint,
+		NULLIF(preferences->>'bedrooms', '')::smallint
+		FROM discovery_profiles WHERE viewer_id=$1`, viewerID).Scan(&profile.City, &profile.PropertyType, &profile.PriceCentavos, &profile.Bedrooms)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return DiscoveryProfile{}, ErrNotFound
+	}
+	return profile, err
+}
+
+func (s *PostgresStore) ListViewedListingIDs(ctx context.Context, viewerID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := s.pool.Query(ctx, `SELECT DISTINCT listing_id FROM discovery_events
+		WHERE viewer_id=$1 AND created_at >= now() - interval '30 days'
+		AND event_type IN ('card_click', 'detail_view', 'favorite', 'contact_reveal')
+		ORDER BY listing_id LIMIT 200`, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
 func nullString(v string) any {
 	if v == "" {
 		return nil

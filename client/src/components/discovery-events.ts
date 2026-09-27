@@ -2,7 +2,7 @@
 
 type EventType = "impression" | "card_click" | "detail_view" | "contact_reveal";
 type DiscoveryEvent = { listing_id: string; event_type: EventType; query?: string };
-let pending: DiscoveryEvent[] = [];
+const pending: DiscoveryEvent[] = [];
 let timer: ReturnType<typeof setTimeout> | undefined;
 
 export function trackDiscovery(event: DiscoveryEvent) {

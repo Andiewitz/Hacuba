@@ -149,7 +149,7 @@ export async function getPublicListings(filters: ListingFilters = {}) {
   }
 }
 
-export async function getDiscovery(filters: ListingFilters = {}): Promise<DiscoverySection[]> {
+export async function getDiscovery(filters: ListingFilters = {}, viewerID?: string): Promise<DiscoverySection[]> {
   const apiUrl = process.env.LISTINGS_API_URL;
   if (!apiUrl) return [{ id: "new", title: "Newly listed", reason: "Fresh properties added to Hacuba.", listings: fixtureListings(filters) }];
   const query = new URLSearchParams();
@@ -159,7 +159,12 @@ export async function getDiscovery(filters: ListingFilters = {}): Promise<Discov
   if (filters.minPrice !== undefined) query.set("min_price", String(filters.minPrice));
   if (filters.maxPrice !== undefined) query.set("max_price", String(filters.maxPrice));
   try {
-    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/discover?${query}`, { next: { revalidate: 60 } });
+    const proxySecret = process.env.DISCOVERY_PROXY_SECRET;
+    const personalized = Boolean(viewerID && proxySecret);
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/discover?${query}`, {
+      headers: personalized ? { "X-Hacuba-Discovery-Proxy": proxySecret!, "X-Hacuba-Viewer-ID": viewerID! } : undefined,
+      ...(personalized ? { cache: "no-store" } : { next: { revalidate: 60 } }),
+    });
     if (!response.ok) return [];
     const data = await response.json() as { sections: Array<{ id: string; title: string; reason: string; listings: ListingDetail[] }> };
     return data.sections.map((section) => ({ ...section, listings: section.listings.map(toCard) }));
