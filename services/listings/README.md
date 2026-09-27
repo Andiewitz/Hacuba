@@ -76,11 +76,14 @@ Terraform CloudFront output; do not expose an S3 public URL. The Listings
 workload needs the Terraform image policy and its own database/JWT secrets
 policy. See `../../terraform/README.md` for the apply and migration steps.
 
-## Search (planned for Postgres)
+## Search and discovery
 
-Plain Postgres: btree on `(status, property_type, city, price_centavos)`
-(already in `001_init.sql`), `pg_trgm` for free-text "Where" in a later
-migration. No Elasticsearch. Cursor pagination, not offset.
+Public browse uses opaque keyset cursors, never offset pagination. Migration
+`004_discovery_search.sql` adds partial indexes for public newest and price
+sorts, an owner dashboard index, and a `pg_trgm` index for case-insensitive
+partial search across title, city, and barangay. The next discovery phases are
+defined in `../../docs/DISCOVERY.md`; OpenSearch is deliberately deferred until
+Postgres query plans and traffic justify a separate search system.
 
 ## Layout (planned, mirrors `services/auth/`)
 

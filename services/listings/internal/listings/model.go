@@ -100,6 +100,14 @@ type ListFilter struct {
 	Beds     *int16
 	Query    string
 	Sort     string
-	Cursor   string
+	Cursor   *ListCursor
 	Limit    int
+}
+
+// ListCursor records the final sort key from a page. It makes pagination
+// stable when listings are published or prices change between requests.
+type ListCursor struct {
+	ID            uuid.UUID `json:"id"`
+	PublishedAt   time.Time `json:"published_at"`
+	PriceCentavos int64     `json:"price_centavos"`
 }

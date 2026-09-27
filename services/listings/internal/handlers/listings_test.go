@@ -171,6 +171,59 @@ func TestPublicDetailIncludesContactButBrowseDoesNot(t *testing.T) {
 	}
 }
 
+func TestPublicBrowseUsesOpaqueKeysetCursor(t *testing.T) {
+	store := listings.NewMemoryStore()
+	now := time.Now().UTC().Truncate(time.Second)
+	price := int64(100_000_000)
+	owner := uuid.Must(uuid.NewV7())
+	ids := []uuid.UUID{uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())}
+	for i, id := range ids {
+		publishedAt := now.Add(time.Duration(i) * time.Minute)
+		_, err := store.Create(t.Context(), listings.Listing{
+			ID: id, OwnerID: owner, ListingMode: listings.ModeSale, PropertyType: listings.TypeHouse,
+			Title: "Cursor test home", Description: "A listing used to verify keyset pagination.", PriceCentavos: &price,
+			Currency: "PHP", City: "Cebu City", Status: listings.StatusPublished, PublishedAt: &publishedAt,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	mux := server.NewMux(config.Config{JWTSecret: []byte("listings-test-secret-must-be-32-bytes!!")}, store)
+	type page struct {
+		Listings []struct {
+			ID uuid.UUID `json:"id"`
+		} `json:"listings"`
+		NextCursor string `json:"next_cursor"`
+	}
+	get := func(target string) page {
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, target, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("browse = %d: %s", rec.Code, rec.Body.String())
+		}
+		var result page
+		if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+			t.Fatal(err)
+		}
+		return result
+	}
+
+	first := get("/listings?limit=2")
+	if len(first.Listings) != 2 || first.NextCursor == "" || first.Listings[0].ID != ids[2] || first.Listings[1].ID != ids[1] {
+		t.Fatalf("first page = %#v", first)
+	}
+	second := get("/listings?limit=2&cursor=" + first.NextCursor)
+	if len(second.Listings) != 1 || second.Listings[0].ID != ids[0] || second.Listings[0].ID == first.Listings[0].ID || second.Listings[0].ID == first.Listings[1].ID {
+		t.Fatalf("second page repeated or skipped rows: %#v", second)
+	}
+
+	bad := httptest.NewRecorder()
+	mux.ServeHTTP(bad, httptest.NewRequest(http.MethodGet, "/listings?sort=price_asc&cursor="+first.NextCursor, nil))
+	if bad.Code != http.StatusBadRequest {
+		t.Fatalf("cursor used with another sort = %d: %s", bad.Code, bad.Body.String())
+	}
+}
+
 func sellerToken(t *testing.T, secret []byte, id uuid.UUID) (string, string) {
 	t.Helper()
 	csrf := "csrf-value-" + id.String()

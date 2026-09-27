@@ -127,21 +127,16 @@ func (s *SQLiteStore) ListPublished(ctx context.Context, filter ListFilter) ([]L
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if filter.Sort == "price_asc" {
-			return *out[i].PriceCentavos < *out[j].PriceCentavos
-		}
-		if filter.Sort == "price_desc" {
-			return *out[i].PriceCentavos > *out[j].PriceCentavos
-		}
-		return out[i].PublishedAt.After(*out[j].PublishedAt)
+		return BeforeBrowse(out[i], out[j], filter.Sort)
 	})
-	if filter.Cursor != "" {
-		for i, listing := range out {
-			if listing.ID.String() == filter.Cursor {
-				out = out[i+1:]
-				break
+	if filter.Cursor != nil {
+		page := out[:0]
+		for _, listing := range out {
+			if AfterCursor(listing, filter.Cursor, filter.Sort) {
+				page = append(page, listing)
 			}
 		}
+		out = page
 	}
 	if filter.Limit > 0 && len(out) > filter.Limit {
 		out = out[:filter.Limit]

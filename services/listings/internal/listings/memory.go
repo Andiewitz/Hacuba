@@ -78,21 +78,16 @@ func (m *MemoryStore) ListPublished(_ context.Context, f ListFilter) ([]Listing,
 		out = append(out, *copyListing(l))
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if f.Sort == "price_asc" {
-			return *out[i].PriceCentavos < *out[j].PriceCentavos
-		}
-		if f.Sort == "price_desc" {
-			return *out[i].PriceCentavos > *out[j].PriceCentavos
-		}
-		return out[i].PublishedAt.After(*out[j].PublishedAt)
+		return BeforeBrowse(out[i], out[j], f.Sort)
 	})
-	if f.Cursor != "" {
-		for i, l := range out {
-			if l.ID.String() == f.Cursor {
-				out = out[i+1:]
-				break
+	if f.Cursor != nil {
+		page := out[:0]
+		for _, l := range out {
+			if AfterCursor(l, f.Cursor, f.Sort) {
+				page = append(page, l)
 			}
 		}
+		out = page
 	}
 	if f.Limit > 0 && len(out) > f.Limit {
 		out = out[:f.Limit]

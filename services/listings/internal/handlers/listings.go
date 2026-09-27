@@ -316,7 +316,7 @@ func (h Handler) ListPublic(w http.ResponseWriter, r *http.Request) {
 	}
 	next := ""
 	if len(items) == f.Limit && len(items) > 0 {
-		next = base64.RawURLEncoding.EncodeToString([]byte(items[len(items)-1].ID.String()))
+		next = encodeCursor(items[len(items)-1], f.Sort)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"listings": response, "next_cursor": next})
 }
@@ -447,16 +447,51 @@ func parseFilter(r *http.Request) (listings.ListFilter, map[string]string) {
 		}
 	}
 	if raw := q.Get("cursor"); raw != "" {
-		decoded, err := base64.RawURLEncoding.DecodeString(raw)
+		cursor, err := decodeCursor(raw, f.Sort)
 		if err != nil {
 			fields["cursor"] = "invalid cursor"
-		} else if _, err := uuid.Parse(string(decoded)); err != nil {
-			fields["cursor"] = "invalid cursor"
 		} else {
-			f.Cursor = string(decoded)
+			f.Cursor = cursor
 		}
 	}
 	return f, fields
+}
+
+type browseCursor struct {
+	ID            uuid.UUID `json:"id"`
+	Sort          string    `json:"sort"`
+	PublishedAt   time.Time `json:"published_at"`
+	PriceCentavos int64     `json:"price_centavos"`
+}
+
+func encodeCursor(l listings.Listing, sort string) string {
+	cursor := browseCursor{ID: l.ID, Sort: sort}
+	if l.PublishedAt != nil {
+		cursor.PublishedAt = *l.PublishedAt
+	}
+	if l.PriceCentavos != nil {
+		cursor.PriceCentavos = *l.PriceCentavos
+	}
+	raw, _ := json.Marshal(cursor)
+	return base64.RawURLEncoding.EncodeToString(raw)
+}
+
+func decodeCursor(raw, sort string) (*listings.ListCursor, error) {
+	decoded, err := base64.RawURLEncoding.DecodeString(raw)
+	if err != nil {
+		return nil, err
+	}
+	var cursor browseCursor
+	if err := json.Unmarshal(decoded, &cursor); err != nil || cursor.ID == uuid.Nil || cursor.Sort != sort {
+		return nil, errors.New("invalid cursor")
+	}
+	if sort == "newest" && cursor.PublishedAt.IsZero() {
+		return nil, errors.New("invalid cursor")
+	}
+	if (sort == "price_asc" || sort == "price_desc") && cursor.PriceCentavos < 1 {
+		return nil, errors.New("invalid cursor")
+	}
+	return &listings.ListCursor{ID: cursor.ID, PublishedAt: cursor.PublishedAt, PriceCentavos: cursor.PriceCentavos}, nil
 }
 
 func pathID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {

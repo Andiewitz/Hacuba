@@ -276,6 +276,13 @@ unpublish, close, and archive controls.**
 - Run the full CI matrix: Go unit/integration/router tests, Compose smoke,
   Terraform validation, client checks, and end-to-end browser coverage.
 
+## Discovery service
+
+**Phase 1 is implemented.** Public browse now has sort-bound keyset cursors,
+seller dashboard and public sort indexes, and PostgreSQL trigram search for
+title, city, and barangay. The event, ranking, product-surface, and scale plan
+is maintained in `docs/DISCOVERY.md`.
+
 ## Release gate
 
 Do not publish a listing service release until every phase before the intended

@@ -103,7 +103,7 @@ func (s *PostgresStore) ListPublished(ctx context.Context, f ListFilter) ([]List
 		add("bedrooms >= $%d", *f.Beds)
 	}
 	if f.Query != "" {
-		add("(title ILIKE '%%' || $%d || '%%' OR city ILIKE '%%' || $%d || '%%')", f.Query)
+		add("lower(title || ' ' || city || ' ' || coalesce(barangay, '')) LIKE '%%' || lower($%d) || '%%'", f.Query)
 	}
 	order := "published_at DESC, id DESC"
 	if f.Sort == "price_asc" {
@@ -111,6 +111,19 @@ func (s *PostgresStore) ListPublished(ctx context.Context, f ListFilter) ([]List
 	}
 	if f.Sort == "price_desc" {
 		order = "price_centavos DESC, id DESC"
+	}
+	if f.Cursor != nil {
+		switch f.Sort {
+		case "price_asc":
+			args = append(args, f.Cursor.PriceCentavos, f.Cursor.ID)
+			where = append(where, fmt.Sprintf("(price_centavos, id) > ($%d, $%d)", len(args)-1, len(args)))
+		case "price_desc":
+			args = append(args, f.Cursor.PriceCentavos, f.Cursor.ID)
+			where = append(where, fmt.Sprintf("(price_centavos, id) < ($%d, $%d)", len(args)-1, len(args)))
+		default:
+			args = append(args, f.Cursor.PublishedAt, f.Cursor.ID)
+			where = append(where, fmt.Sprintf("(published_at, id) < ($%d, $%d)", len(args)-1, len(args)))
+		}
 	}
 	args = append(args, f.Limit)
 	rows, err := s.pool.Query(ctx, `SELECT `+listingJSON+` FROM listings WHERE `+strings.Join(where, " AND ")+` ORDER BY `+order+fmt.Sprintf(" LIMIT $%d", len(args)), args...)
