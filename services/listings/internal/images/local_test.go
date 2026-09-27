@@ -15,9 +15,9 @@ func TestLocalStoreUploadsAndServesExpectedObject(t *testing.T) {
 		t.Fatal(err)
 	}
 	key := "listings/listing-id/image.jpg"
-	url, err := store.PresignPut(context.Background(), key, "image/jpeg", 3)
-	if err != nil || !strings.HasSuffix(url, "/"+key) {
-		t.Fatalf("presign = %q, %v", url, err)
+	target, err := store.PresignPut(context.Background(), key, "image/jpeg", 3)
+	if err != nil || !strings.HasSuffix(target.URL, "/"+key) {
+		t.Fatalf("presign = %q, %v", target.URL, err)
 	}
 
 	put := httptest.NewRequest(http.MethodPut, "/dev-uploads/"+key, strings.NewReader("jpg"))

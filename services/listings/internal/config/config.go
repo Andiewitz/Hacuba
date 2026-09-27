@@ -31,5 +31,8 @@ func Load() (Config, error) {
 	if databaseURL != "" && devSQLitePath != "" {
 		return Config{}, fmt.Errorf("DATABASE_URL and DEV_SQLITE_PATH cannot both be set")
 	}
+	if databaseURL == "" && devSQLitePath == "" {
+		return Config{}, fmt.Errorf("DATABASE_URL is required unless DEV_SQLITE_PATH is explicitly set for development")
+	}
 	return Config{Port: port, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), CacheTTL: 5 * time.Minute, S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET")}, nil
 }

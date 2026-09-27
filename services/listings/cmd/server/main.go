@@ -20,7 +20,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("listings: invalid config: %v", err)
 	}
-	var store listings.Store = listings.NewMemoryStore()
+	var store listings.Store
 	if cfg.DatabaseURL != "" {
 		postgres, err := listings.NewPostgresStore(context.Background(), cfg.DatabaseURL)
 		if err != nil {
@@ -36,8 +36,6 @@ func main() {
 		defer sqlite.Close()
 		store = sqlite
 		log.Printf("listings: DEV_SQLITE_PATH is set — using persistent development SQLite")
-	} else {
-		log.Print("listings: DATABASE_URL unset — using in-memory store (dev only)")
 	}
 	var objects images.ObjectStore
 	if cfg.S3Region != "" || cfg.S3Bucket != "" {

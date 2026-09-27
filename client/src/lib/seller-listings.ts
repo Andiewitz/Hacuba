@@ -159,7 +159,7 @@ export async function uploadListingImage(
   accessToken: string,
   csrfToken: string,
 ) {
-  const presigned = await sellerRequest<{ object_key: string; upload_url: string }>(
+  const presigned = await sellerRequest<{ object_key: string; upload_url: string; upload_headers?: Record<string, string> }>(
     `/api/listings/${listingID}/images/presign`,
     accessToken,
     csrfToken,
@@ -170,7 +170,7 @@ export async function uploadListingImage(
   );
   const upload = await fetch(presigned.upload_url, {
     method: "PUT",
-    headers: { "Content-Type": file.type },
+    headers: { "Content-Type": file.type, ...presigned.upload_headers },
     body: file,
   });
   if (!upload.ok) {

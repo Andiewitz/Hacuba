@@ -1,9 +1,11 @@
 package handlers_test
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,9 +15,35 @@ import (
 	"github.com/google/uuid"
 	"github.com/hacuba/authjwt"
 	"github.com/hacuba/listings/internal/config"
+	"github.com/hacuba/listings/internal/images"
 	"github.com/hacuba/listings/internal/listings"
 	"github.com/hacuba/listings/internal/server"
 )
+
+type testObjectStore struct {
+	lastKey          string
+	markedRegistered bool
+}
+
+func (s *testObjectStore) PresignPut(_ context.Context, key, _ string, _ int64) (images.UploadTarget, error) {
+	s.lastKey = key
+	return images.UploadTarget{URL: "https://uploads.example.test/" + key, Headers: map[string]string{"x-amz-tagging": "state=unregistered"}}, nil
+}
+
+func (s *testObjectStore) Head(_ context.Context, key string) error {
+	if key != s.lastKey {
+		return errors.New("unknown object")
+	}
+	return nil
+}
+
+func (s *testObjectStore) MarkRegistered(_ context.Context, key string) error {
+	if key != s.lastKey {
+		return errors.New("unknown object")
+	}
+	s.markedRegistered = true
+	return nil
+}
 
 func TestDraftPublishValidationAndOwnerIsolation(t *testing.T) {
 	secret := []byte("listings-test-secret-must-be-32-bytes!!")
@@ -68,6 +96,47 @@ func TestBuyerCannotCreateListing(t *testing.T) {
 	mux.ServeHTTP(rec, req)
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("buyer create = %d, want 403", rec.Code)
+	}
+}
+
+func TestImageUploadPassesSignedHeadersAndRegistersObject(t *testing.T) {
+	secret := []byte("listings-test-secret-must-be-32-bytes!!")
+	store, objects := listings.NewMemoryStore(), &testObjectStore{}
+	mux := server.NewMuxWithObjects(config.Config{JWTSecret: secret}, store, objects)
+	owner := uuid.Must(uuid.NewV7())
+	token, csrf := sellerToken(t, secret, owner)
+	request := func(method, target, body string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, target, strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-CSRF-Token", csrf)
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: "csrf_token", Value: csrf})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+
+	created := request(http.MethodPost, "/listings", `{}`)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create draft = %d: %s", created.Code, created.Body.String())
+	}
+	var draft listings.Listing
+	if err := json.NewDecoder(created.Body).Decode(&draft); err != nil {
+		t.Fatal(err)
+	}
+	presigned := request(http.MethodPost, "/listings/"+draft.ID.String()+"/images/presign", `{"content_type":"image/jpeg","byte_size":3}`)
+	if presigned.Code != http.StatusOK || !strings.Contains(presigned.Body.String(), "x-amz-tagging") {
+		t.Fatalf("presign = %d: %s", presigned.Code, presigned.Body.String())
+	}
+	var target struct {
+		ObjectKey string `json:"object_key"`
+	}
+	if err := json.NewDecoder(presigned.Body).Decode(&target); err != nil {
+		t.Fatal(err)
+	}
+	registered := request(http.MethodPost, "/listings/"+draft.ID.String()+"/images", `{"object_key":"`+target.ObjectKey+`","content_type":"image/jpeg","byte_size":3,"position":0}`)
+	if registered.Code != http.StatusCreated || !objects.markedRegistered {
+		t.Fatalf("register = %d, marked=%t: %s", registered.Code, objects.markedRegistered, registered.Body.String())
 	}
 }
 

@@ -113,6 +113,9 @@ before the next depends on it.
 
 ## Phase 4 — Infrastructure
 
+**Status: implemented as an AWS Terraform module; awaiting a real AWS account,
+network identifiers, and deployment credentials before apply.**
+
 - Add Terraform for a private S3 bucket, public-access block, CloudFront Origin
   Access Control, client-origin-only bucket CORS, scoped service IAM policy,
   and orphan-upload lifecycle expiry.
@@ -208,8 +211,10 @@ server-side publishing validation. Image upload and registration remain Phase
 
 ### Phase 6C — Upload and register real property images
 
-**Status: implemented for development with a local object-store substitute.
-Production continues to use S3 presigned URLs and CloudFront image URLs.**
+**Status: implemented for development and configured for production. Local
+development uses a disk-backed substitute only when `DEV_SQLITE_PATH` is set.
+Production uses tagged S3 presigned URLs, lifecycle cleanup for unregistered
+uploads, and CloudFront image URLs supplied by Terraform.**
 
 - Have the seller form request a presigned image URL from Listings, upload each
   selected JPEG/PNG/WebP directly to object storage, then register the uploaded

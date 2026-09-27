@@ -1,0 +1,9 @@
+# Store Terraform state remotely before applying a persistent environment.
+# Create this state bucket and lock table through your platform bootstrap process;
+# they are intentionally separate from the application module to avoid a local,
+# password-containing first apply.
+bucket         = "replace-with-encrypted-terraform-state-bucket"
+key            = "hacuba/production/terraform.tfstate"
+region         = "ap-southeast-1"
+encrypt        = true
+dynamodb_table = "replace-with-terraform-lock-table"

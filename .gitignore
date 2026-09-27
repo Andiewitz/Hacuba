@@ -43,3 +43,7 @@ next-env.d.ts
 # Local development databases
 services/listings/.dev/
 services/auth/.dev/
+
+# Ephemeral local toolchains used only for verification.
+.tools/
+terraform/.terraform/

@@ -11,6 +11,8 @@ A real estate listing platform built as a portfolio project demonstrating modern
 - **State Management:** [Redux Toolkit](https://redux-toolkit.js.org/)
 - **Animations:** [Framer Motion](https://www.framer.com/motion/)
 - **Icons:** [Lucide React](https://lucide.dev/)
+- **Services:** Go Auth and Listings APIs with PostgreSQL in production
+- **Production infrastructure:** AWS RDS, S3, CloudFront, IAM, and Secrets Manager via Terraform
 
 ## Features
 
@@ -27,7 +29,8 @@ A real estate listing platform built as a portfolio project demonstrating modern
 # Install dependencies
 npm install
 
-# Run development server
+# Install client dependencies and run the client
+npm install
 npm run dev --workspace client
 
 # Build for production
@@ -35,6 +38,20 @@ npm run build --workspace client
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to view the app.
+
+For the complete local stack without Docker, set the ignored `client/.env.local`
+from `client/.env.example`, then start each API with an explicit development
+SQLite path. `DEV_SQLITE_PATH` is intentionally rejected in production.
+
+```powershell
+$env:DEV_SQLITE_PATH = ".dev/auth.db"; $env:JWT_SECRET = "a-development-secret-at-least-32-characters"; go run ./cmd/server
+# Run the Listings service in a second terminal, with the same JWT_SECRET.
+$env:DEV_SQLITE_PATH = ".dev/listings.db"; $env:DEV_UPLOAD_URL = "http://localhost:3000/api/dev-uploads"; $env:JWT_SECRET = "a-development-secret-at-least-32-characters"; go run ./cmd/server
+```
+
+Run those commands from `services/auth` and `services/listings` respectively.
+For production provisioning, migration, IAM attachment, and deployment values,
+see [terraform/README.md](./terraform/README.md).
 
 ## Project Structure
 
@@ -49,8 +66,8 @@ Hacuba/
 │   └── public/              # Static assets
 ├── docs/                    # Documentation
 ├── scripts/                 # Build/deploy scripts
-├── services/                # Backend (planned)
-├── terraform/               # Infrastructure (planned)
+├── services/                # Auth and Listings Go APIs
+├── terraform/               # Production AWS infrastructure
 ├── tests/                   # Tests (planned)
 ├── DESIGN.md                # Design system tokens
 ├── AGENTS.md                # AI agent workflow rules

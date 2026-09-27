@@ -36,17 +36,21 @@ func NewLocalStore(root, publicURL string) (*LocalStore, error) {
 	return &LocalStore{root: root, publicURL: strings.TrimRight(publicURL, "/"), pending: map[string]pendingUpload{}}, nil
 }
 
-func (s *LocalStore) PresignPut(_ context.Context, key, contentType string, size int64) (string, error) {
+func (s *LocalStore) PresignPut(_ context.Context, key, contentType string, size int64) (UploadTarget, error) {
 	s.mu.Lock()
 	s.pending[key] = pendingUpload{contentType: contentType, byteSize: size}
 	s.mu.Unlock()
-	return s.publicURL + "/" + key, nil
+	return UploadTarget{URL: s.publicURL + "/" + key}, nil
 }
 
 func (s *LocalStore) Head(_ context.Context, key string) error {
 	_, err := os.Stat(s.pathFor(key))
 	return err
 }
+
+// MarkRegistered is intentionally a no-op: development uploads are held on
+// disk rather than governed by S3 lifecycle rules.
+func (s *LocalStore) MarkRegistered(_ context.Context, _ string) error { return nil }
 
 func (s *LocalStore) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	key := strings.TrimPrefix(r.URL.Path, "/dev-uploads/")

@@ -55,12 +55,12 @@ func (h Handler) PresignImage(w http.ResponseWriter, r *http.Request) {
 		internalError(w)
 		return
 	}
-	url, err := h.Objects.PresignPut(r.Context(), key, req.ContentType, req.ByteSize)
+	target, err := h.Objects.PresignPut(r.Context(), key, req.ContentType, req.ByteSize)
 	if err != nil {
 		internalError(w)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"object_key": key, "upload_url": url})
+	writeJSON(w, http.StatusOK, map[string]any{"object_key": key, "upload_url": target.URL, "upload_headers": target.Headers})
 }
 
 func (h Handler) RegisterImage(w http.ResponseWriter, r *http.Request) {
@@ -92,6 +92,14 @@ func (h Handler) RegisterImage(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.Objects.Head(r.Context(), req.ObjectKey); err != nil {
 		badRequest(w, map[string]string{"object_key": "uploaded object not found"})
+		return
+	}
+	// Promote the object before persisting it. If this S3 control-plane call
+	// fails, the client can retry safely and the lifecycle rule will still
+	// remove the unregistered upload. A later database validation failure may
+	// leave a private registered orphan, but it can never expire a real image.
+	if err := h.Objects.MarkRegistered(r.Context(), req.ObjectKey); err != nil {
+		internalError(w)
 		return
 	}
 	id, err := uuid.NewV7()

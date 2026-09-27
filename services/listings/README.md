@@ -6,9 +6,10 @@ Postgres** (`listings-db`) on an internal Docker network — same isolation
 rule as `auth-db`. Users live in `auth-db`, so listings reference sellers
 by UUID only (`owner_id`, no FK); identity always comes from the JWT `sub`.
 
-Status: domain, auth boundary, Postgres store, Compose stack, and public/seller
-listing routes are implemented. S3 image upload, Redis detail caching,
-Terraform, and client integration remain later build steps.
+Status: domain, auth boundary, Postgres store, Compose stack, public/seller
+routes, API client integration, and image upload are implemented. Development
+uses explicit SQLite and local disk uploads; production uses an IAM-backed S3
+bucket with CloudFront URLs and Terraform in `../../terraform`.
 
 ## Domain model
 
@@ -61,6 +62,19 @@ CSRF cookie/header pair: `POST /listings`, `PATCH /listings/{id}`,
 `POST /listings/{id}/publish`, `/unpublish`, `/close`, `DELETE /listings/{id}`
 and `GET /me/listings`. All cross-owner access is a 404. Publishing returns a
 400 with all missing fields and leaves the draft unchanged.
+
+## Images and deployment
+
+The API accepts only JPEG, PNG, and WebP files up to 10 MB. In production it
+returns a five-minute S3 presigned PUT URL with an `x-amz-tagging` header. The
+browser must send that header along with `Content-Type`; the API verifies and
+registers the uploaded object before it can publish a listing. Terraform adds
+the `state=unregistered` lifecycle rule so abandoned uploads are removed.
+
+Object storage stays private. Set the client `LISTINGS_IMAGE_BASE_URL` to the
+Terraform CloudFront output; do not expose an S3 public URL. The Listings
+workload needs the Terraform image policy and its own database/JWT secrets
+policy. See `../../terraform/README.md` for the apply and migration steps.
 
 ## Search (planned for Postgres)
 

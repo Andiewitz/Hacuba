@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars and replace every placeholder before planning.
+environment            = "production"
+vpc_id                 = "vpc-0123456789abcdef0"
+private_subnet_ids     = ["subnet-0123456789abcdef0", "subnet-0fedcba9876543210"]
+app_security_group_ids = ["sg-0123456789abcdef0"]
+client_origins         = ["https://app.example.com"]
+
+# Use a small instance only for non-production environments.
+rds_instance_class      = "db.t4g.micro"
+rds_multi_az            = true
+rds_deletion_protection = true
+rds_skip_final_snapshot = false
