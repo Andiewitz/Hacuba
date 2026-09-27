@@ -224,6 +224,23 @@ func TestPublicBrowseUsesOpaqueKeysetCursor(t *testing.T) {
 	}
 }
 
+func TestDiscoveryEventsAcceptOnlyPublishedListings(t *testing.T) {
+	store := listings.NewMemoryStore()
+	listingID, ownerID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	price, publishedAt := int64(100_000_000), time.Now().UTC()
+	_, err := store.Create(t.Context(), listings.Listing{ID: listingID, OwnerID: ownerID, ListingMode: listings.ModeSale, PropertyType: listings.TypeHouse, Title: "Discovery event home", Description: "Published listing used for discovery event validation.", PriceCentavos: &price, Currency: "PHP", City: "Cebu City", Status: listings.StatusPublished, PublishedAt: &publishedAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := server.NewMux(config.Config{JWTSecret: []byte("listings-test-secret-must-be-32-bytes!!")}, store)
+	body := `{"viewer_id":"` + uuid.Must(uuid.NewV7()).String() + `","events":[{"listing_id":"` + listingID.String() + `","event_type":"detail_view","query":"cebu"}]}`
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/discovery/events", strings.NewReader(body)))
+	if rec.Code != http.StatusAccepted || !strings.Contains(rec.Body.String(), `"accepted":1`) {
+		t.Fatalf("discovery events = %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func sellerToken(t *testing.T, secret []byte, id uuid.UUID) (string, string) {
 	t.Helper()
 	csrf := "csrf-value-" + id.String()

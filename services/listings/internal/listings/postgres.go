@@ -202,6 +202,28 @@ func (s *PostgresStore) DeleteImage(ctx context.Context, listingID, imageID, own
 	}
 	return nil
 }
+
+func (s *PostgresStore) RecordDiscoveryEvents(ctx context.Context, events []DiscoveryEvent) (int, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	inserted := 0
+	for _, event := range events {
+		tag, err := tx.Exec(ctx, `INSERT INTO discovery_events (id, viewer_id, listing_id, event_type, query, created_at)
+			SELECT $1,$2,$3,$4,$5,$6 WHERE EXISTS (SELECT 1 FROM listings WHERE id=$3 AND status='published')`,
+			event.ID, event.ViewerID, event.ListingID, event.EventType, nullString(event.Query), event.CreatedAt)
+		if err != nil {
+			return 0, err
+		}
+		inserted += int(tag.RowsAffected())
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return inserted, nil
+}
 func nullString(v string) any {
 	if v == "" {
 		return nil

@@ -21,6 +21,55 @@ type Handler struct {
 	Objects images.ObjectStore
 }
 
+// RecordDiscoveryEvents accepts a bounded client batch. Viewer IDs are
+// rotating UUIDs; the service intentionally does not persist IP addresses.
+func (h Handler) RecordDiscoveryEvents(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ViewerID uuid.UUID `json:"viewer_id"`
+		Events   []struct {
+			ListingID uuid.UUID `json:"listing_id"`
+			EventType string    `json:"event_type"`
+			Query     string    `json:"query"`
+		} `json:"events"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	if req.ViewerID == uuid.Nil || len(req.Events) == 0 || len(req.Events) > 25 {
+		badRequest(w, map[string]string{"events": "viewer_id and 1 to 25 events are required"})
+		return
+	}
+	events := make([]listings.DiscoveryEvent, 0, len(req.Events))
+	for _, input := range req.Events {
+		query := strings.TrimSpace(input.Query)
+		if input.ListingID == uuid.Nil || len(query) > 120 || !discoveryEventType(input.EventType) {
+			badRequest(w, map[string]string{"events": "invalid listing_id, event_type, or query"})
+			return
+		}
+		id, err := uuid.NewV7()
+		if err != nil {
+			internalError(w)
+			return
+		}
+		events = append(events, listings.DiscoveryEvent{ID: id, ViewerID: req.ViewerID, ListingID: input.ListingID, EventType: input.EventType, Query: query, CreatedAt: time.Now().UTC()})
+	}
+	accepted, err := h.Store.RecordDiscoveryEvents(r.Context(), events)
+	if err != nil {
+		internalError(w)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]int{"accepted": accepted})
+}
+
+func discoveryEventType(value string) bool {
+	switch value {
+	case listings.DiscoveryImpression, listings.DiscoveryCardClick, listings.DiscoveryDetailView, listings.DiscoveryFavorite, listings.DiscoveryContactReveal:
+		return true
+	default:
+		return false
+	}
+}
+
 func (h Handler) PresignImage(w http.ResponseWriter, r *http.Request) {
 	l, ok := h.ownerListing(w, r)
 	if !ok {

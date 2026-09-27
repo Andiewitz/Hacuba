@@ -56,6 +56,14 @@ func (s *SQLiteStore) initialize(ctx context.Context) error {
 			payload TEXT NOT NULL,
 			UNIQUE(listing_id, position)
 		);
+		CREATE TABLE IF NOT EXISTS dev_discovery_events (
+			id TEXT PRIMARY KEY,
+			viewer_id TEXT NOT NULL,
+			listing_id TEXT NOT NULL,
+			event_type TEXT NOT NULL,
+			query TEXT,
+			created_at TEXT NOT NULL
+		);
 	`)
 	if err != nil {
 		return fmt.Errorf("initialize development SQLite: %w", err)
@@ -224,6 +232,27 @@ func (s *SQLiteStore) DeleteImage(ctx context.Context, listingID, imageID, owner
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (s *SQLiteStore) RecordDiscoveryEvents(ctx context.Context, events []DiscoveryEvent) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	inserted := 0
+	for _, event := range events {
+		listing, err := s.readListing(ctx, event.ListingID)
+		if errors.Is(err, ErrNotFound) || (err == nil && listing.Status != StatusPublished) {
+			continue
+		}
+		if err != nil {
+			return 0, err
+		}
+		_, err = s.db.ExecContext(ctx, `INSERT INTO dev_discovery_events (id,viewer_id,listing_id,event_type,query,created_at) VALUES (?,?,?,?,?,?)`, event.ID.String(), event.ViewerID.String(), event.ListingID.String(), event.EventType, nullString(event.Query), event.CreatedAt.Format(time.RFC3339Nano))
+		if err != nil {
+			return 0, err
+		}
+		inserted++
+	}
+	return inserted, nil
 }
 
 func (s *SQLiteStore) writeListing(ctx context.Context, listing Listing) error {

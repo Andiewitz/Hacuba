@@ -25,6 +25,7 @@ func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.O
 	})
 	mux.HandleFunc("GET /listings", h.ListPublic)
 	mux.HandleFunc("GET /listings/{id}", h.GetPublic)
+	mux.HandleFunc("POST /discovery/events", h.RecordDiscoveryEvents)
 	if local, ok := objects.(interface {
 		ServeHTTP(http.ResponseWriter, *http.Request)
 	}); ok {

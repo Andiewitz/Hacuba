@@ -17,6 +17,7 @@ type MemoryStore struct {
 	mu       sync.RWMutex
 	listings map[uuid.UUID]Listing
 	images   map[uuid.UUID]map[uuid.UUID]Image
+	events   []DiscoveryEvent
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -152,6 +153,21 @@ func (m *MemoryStore) DeleteImage(_ context.Context, listingID, imageID, owner u
 	}
 	delete(m.images[listingID], imageID)
 	return nil
+}
+
+func (m *MemoryStore) RecordDiscoveryEvents(_ context.Context, events []DiscoveryEvent) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	inserted := 0
+	for _, event := range events {
+		listing, ok := m.listings[event.ListingID]
+		if !ok || listing.Status != StatusPublished {
+			continue
+		}
+		m.events = append(m.events, event)
+		inserted++
+	}
+	return inserted, nil
 }
 
 func copyListing(l Listing) *Listing { copied := l; return &copied }

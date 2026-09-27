@@ -111,3 +111,20 @@ type ListCursor struct {
 	PublishedAt   time.Time `json:"published_at"`
 	PriceCentavos int64     `json:"price_centavos"`
 }
+
+const (
+	DiscoveryImpression    = "impression"
+	DiscoveryCardClick     = "card_click"
+	DiscoveryDetailView    = "detail_view"
+	DiscoveryFavorite      = "favorite"
+	DiscoveryContactReveal = "contact_reveal"
+)
+
+type DiscoveryEvent struct {
+	ID        uuid.UUID
+	ViewerID  uuid.UUID
+	ListingID uuid.UUID
+	EventType string
+	Query     string
+	CreatedAt time.Time
+}
