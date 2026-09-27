@@ -2,7 +2,8 @@ import { Bath, BedDouble, ChevronLeft, Mail, MapPin, Phone, Ruler } from "lucide
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ListingGallery from "@/components/listing-gallery";
-import { getPublicListing, listingImageUrl } from "@/lib/listings";
+import ListingSection from "@/components/listing-section";
+import { getPublicListing, getRelatedListings, listingImageUrl } from "@/lib/listings";
 
 type ListingPageProps = {
   params: Promise<{ id: string }>;
@@ -23,6 +24,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
   const listing = await getPublicListing(id);
 
   if (!listing) notFound();
+  const related = await getRelatedListings(id);
 
   const images = (listing.images ?? [])
     .map((image) => listingImageUrl(image.object_key))
@@ -130,6 +132,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
           </aside>
         </div>
       </div>
+      {related.length > 0 && <ListingSection title="Similar properties" reason={`Similar ${propertyType.toLowerCase()} listings in ${listing.city}.`} listings={related} sectionIndex={1} />}
     </main>
   );
 }

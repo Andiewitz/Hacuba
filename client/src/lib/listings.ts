@@ -184,3 +184,14 @@ export async function getPublicListing(id: string) {
     return null;
   }
 }
+
+export async function getRelatedListings(id: string) {
+  const apiUrl = process.env.LISTINGS_API_URL;
+  if (!apiUrl) return catalogue.filter((listing) => listing.id !== id).slice(0, 4);
+  try {
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/listings/${encodeURIComponent(id)}/related`, { next: { revalidate: 60 } });
+    if (!response.ok) return [];
+    const data = await response.json() as { listings: ListingDetail[] };
+    return data.listings.map(toCard);
+  } catch { return []; }
+}
