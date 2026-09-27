@@ -42,6 +42,11 @@ Inject the JSON values as `DATABASE_URL` and `JWT_SECRET`. Listings also needs
 `S3_REGION` and `S3_BUCKET` from the Terraform outputs. Set the client
 deployment's `LISTINGS_IMAGE_BASE_URL` to `listing_images_cloudfront_domain`.
 
+The Support workload uses its own private RDS instance. Attach
+`support_runtime_secrets_policy_arn` to that workload and inject both its
+database secret and the shared `jwt_secret_arn`; then apply
+`services/support/migrations/001_init.sql` before accepting reports.
+
 Run the SQL migrations from a private CI runner or an approved bastion that can
 reach the RDS security group, before starting either service:
 

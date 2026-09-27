@@ -177,6 +177,14 @@ data "aws_iam_policy_document" "listings_runtime_secrets" {
   }
 }
 
+data "aws_iam_policy_document" "support_runtime_secrets" {
+  statement {
+    sid       = "ReadSupportRuntimeSecrets"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.support_database.arn, aws_secretsmanager_secret.jwt.arn]
+  }
+}
+
 resource "aws_iam_policy" "auth_runtime_secrets" {
   name        = "${local.name}-auth-runtime-secrets"
   description = "Read only the Auth database DSN and shared JWT secret"
@@ -187,6 +195,12 @@ resource "aws_iam_policy" "listings_runtime_secrets" {
   name        = "${local.name}-listings-runtime-secrets"
   description = "Read only the Listings database DSN and shared JWT secret"
   policy      = data.aws_iam_policy_document.listings_runtime_secrets.json
+}
+
+resource "aws_iam_policy" "support_runtime_secrets" {
+  name        = "${local.name}-support-runtime-secrets"
+  description = "Read only the Support database DSN and shared JWT secret"
+  policy      = data.aws_iam_policy_document.support_runtime_secrets.json
 }
 
 resource "aws_db_subnet_group" "service_databases" {
@@ -226,6 +240,12 @@ resource "random_password" "auth_database" {
 }
 
 resource "random_password" "listings_database" {
+  length           = 32
+  special          = true
+  override_special = "!#$%&*+-=?^_"
+}
+
+resource "random_password" "support_database" {
   length           = 32
   special          = true
   override_special = "!#$%&*+-=?^_"
@@ -286,6 +306,31 @@ resource "aws_db_instance" "listings" {
   apply_immediately          = false
 }
 
+resource "aws_db_instance" "support" {
+  identifier                 = "${local.name}-support"
+  engine                     = "postgres"
+  instance_class             = var.rds_instance_class
+  allocated_storage          = var.rds_allocated_storage
+  max_allocated_storage      = var.rds_allocated_storage * 3
+  storage_type               = "gp3"
+  storage_encrypted          = true
+  db_name                    = "support"
+  username                   = "hacuba_support"
+  password                   = random_password.support_database.result
+  port                       = 5432
+  db_subnet_group_name       = aws_db_subnet_group.service_databases.name
+  vpc_security_group_ids     = [aws_security_group.service_databases.id]
+  publicly_accessible        = false
+  multi_az                   = var.rds_multi_az
+  backup_retention_period    = var.rds_backup_retention_days
+  deletion_protection        = var.rds_deletion_protection
+  skip_final_snapshot        = var.rds_skip_final_snapshot
+  final_snapshot_identifier  = var.rds_skip_final_snapshot ? null : "${local.name}-support-final"
+  auto_minor_version_upgrade = true
+  copy_tags_to_snapshot      = true
+  apply_immediately          = false
+}
+
 resource "aws_secretsmanager_secret" "auth_database" {
   name                    = "${local.name}/auth/database"
   recovery_window_in_days = 7
@@ -307,6 +352,18 @@ resource "aws_secretsmanager_secret_version" "listings_database" {
   secret_id = aws_secretsmanager_secret.listings_database.id
   secret_string = jsonencode({
     DATABASE_URL = "postgresql://${aws_db_instance.listings.username}:${urlencode(random_password.listings_database.result)}@${aws_db_instance.listings.address}:${aws_db_instance.listings.port}/${aws_db_instance.listings.db_name}?sslmode=require"
+  })
+}
+
+resource "aws_secretsmanager_secret" "support_database" {
+  name                    = "${local.name}/support/database"
+  recovery_window_in_days = 7
+}
+
+resource "aws_secretsmanager_secret_version" "support_database" {
+  secret_id = aws_secretsmanager_secret.support_database.id
+  secret_string = jsonencode({
+    DATABASE_URL = "postgresql://${aws_db_instance.support.username}:${urlencode(random_password.support_database.result)}@${aws_db_instance.support.address}:${aws_db_instance.support.port}/${aws_db_instance.support.db_name}?sslmode=require"
   })
 }
 

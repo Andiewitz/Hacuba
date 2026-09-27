@@ -23,6 +23,11 @@ output "listings_runtime_secrets_policy_arn" {
   value       = aws_iam_policy.listings_runtime_secrets.arn
 }
 
+output "support_runtime_secrets_policy_arn" {
+  description = "Attach this policy to the Support workload IAM role."
+  value       = aws_iam_policy.support_runtime_secrets.arn
+}
+
 output "auth_database_secret_arn" {
   description = "Secret containing the Auth service DATABASE_URL."
   value       = aws_secretsmanager_secret.auth_database.arn
@@ -31,6 +36,11 @@ output "auth_database_secret_arn" {
 output "listings_database_secret_arn" {
   description = "Secret containing the Listings service DATABASE_URL."
   value       = aws_secretsmanager_secret.listings_database.arn
+}
+
+output "support_database_secret_arn" {
+  description = "Secret containing the Support service DATABASE_URL."
+  value       = aws_secretsmanager_secret.support_database.arn
 }
 
 output "jwt_secret_arn" {

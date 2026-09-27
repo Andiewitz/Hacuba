@@ -1,0 +1,48 @@
+name: support-tests
+
+on:
+  push:
+    paths: ["services/support/**", "shared/authjwt/**", ".github/workflows/support-tests.yml"]
+  pull_request:
+    paths: ["services/support/**", "shared/authjwt/**"]
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/support
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: services/support/go.sum
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: support
+          POSTGRES_USER: support_service
+          POSTGRES_PASSWORD: testpw
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U support_service -d support"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    defaults:
+      run:
+        working-directory: services/support
+    env:
+      TEST_DATABASE_URL: postgres://support_service:testpw@localhost:5432/support?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: services/support/go.sum
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...

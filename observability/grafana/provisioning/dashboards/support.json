@@ -1,0 +1,13 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {"type":"stat","title":"Open reports","datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"hacuba_support_reports_open","refId":"A"}],"gridPos":{"h":8,"w":8,"x":0,"y":0}},
+    {"type":"timeseries","title":"Reports received by category","datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (category) (increase(hacuba_support_reports_total[24h]))","legendFormat":"{{category}}","refId":"A"}],"gridPos":{"h":8,"w":16,"x":8,"y":0}},
+    {"type":"timeseries","title":"Rejected submissions","datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (reason) (increase(hacuba_support_report_rejections_total[24h]))","legendFormat":"{{reason}}","refId":"A"}],"gridPos":{"h":8,"w":24,"x":0,"y":8}}
+  ],
+  "schemaVersion": 41,
+  "title": "Support operations",
+  "uid": "hacuba-support",
+  "version": 1
+}
