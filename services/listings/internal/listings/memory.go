@@ -14,10 +14,11 @@ import (
 // MemoryStore is deterministic test storage. Production is expected to use
 // Postgres with the migration constraints in migrations/.
 type MemoryStore struct {
-	mu       sync.RWMutex
-	listings map[uuid.UUID]Listing
-	images   map[uuid.UUID]map[uuid.UUID]Image
-	events   []DiscoveryEvent
+	mu                sync.RWMutex
+	listings          map[uuid.UUID]Listing
+	images            map[uuid.UUID]map[uuid.UUID]Image
+	events            []DiscoveryEvent
+	moderationActions []ModerationAction
 }
 
 func NewMemoryStore() *MemoryStore {
@@ -153,6 +154,34 @@ func (m *MemoryStore) DeleteImage(_ context.Context, listingID, imageID, owner u
 	}
 	delete(m.images[listingID], imageID)
 	return nil
+}
+
+func (m *MemoryStore) Moderate(_ context.Context, listingID, actorID, reportID uuid.UUID, action, reason string) (*Listing, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	l, ok := m.listings[listingID]
+	if !ok {
+		return nil, ErrNotFound
+	}
+	now := time.Now().UTC()
+	switch action {
+	case ModerationHide:
+		if l.Status != StatusPublished || strings.TrimSpace(reason) == "" {
+			return nil, ErrNotFound
+		}
+		l.Status, l.ModerationReason, l.ModerationReportID, l.ModeratedAt = StatusModerationHidden, strings.TrimSpace(reason), &reportID, &now
+	case ModerationRestore:
+		if l.Status != StatusModerationHidden {
+			return nil, ErrNotFound
+		}
+		l.Status, l.ModerationReason, l.ModerationReportID, l.ModeratedAt = StatusPublished, "", nil, nil
+	default:
+		return nil, ErrNotFound
+	}
+	l.UpdatedAt = now
+	m.listings[listingID] = l
+	m.moderationActions = append(m.moderationActions, ModerationAction{ID: uuid.New(), ListingID: listingID, ReportID: reportID, ActorID: actorID, Action: action, Reason: strings.TrimSpace(reason), CreatedAt: now})
+	return copyListing(l), nil
 }
 
 func (m *MemoryStore) RecordDiscoveryEvents(_ context.Context, events []DiscoveryEvent) (int, error) {

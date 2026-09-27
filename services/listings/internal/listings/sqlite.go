@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -63,6 +64,10 @@ func (s *SQLiteStore) initialize(ctx context.Context) error {
 			event_type TEXT NOT NULL,
 			query TEXT,
 			created_at TEXT NOT NULL
+		);
+		CREATE TABLE IF NOT EXISTS dev_listing_moderation_actions (
+			id TEXT PRIMARY KEY, listing_id TEXT NOT NULL, report_id TEXT NOT NULL,
+			actor_id TEXT NOT NULL, action TEXT NOT NULL, reason TEXT, created_at TEXT NOT NULL
 		);
 	`)
 	if err != nil {
@@ -232,6 +237,39 @@ func (s *SQLiteStore) DeleteImage(ctx context.Context, listingID, imageID, owner
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (s *SQLiteStore) Moderate(ctx context.Context, listingID, actorID, reportID uuid.UUID, action, reason string) (*Listing, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	listing, err := s.readListing(ctx, listingID)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC()
+	switch action {
+	case ModerationHide:
+		if listing.Status != StatusPublished || strings.TrimSpace(reason) == "" {
+			return nil, ErrNotFound
+		}
+		listing.Status, listing.ModerationReason, listing.ModerationReportID, listing.ModeratedAt = StatusModerationHidden, strings.TrimSpace(reason), &reportID, &now
+	case ModerationRestore:
+		if listing.Status != StatusModerationHidden {
+			return nil, ErrNotFound
+		}
+		listing.Status, listing.ModerationReason, listing.ModerationReportID, listing.ModeratedAt = StatusPublished, "", nil, nil
+		listing.PublishedAt = &now
+	default:
+		return nil, ErrNotFound
+	}
+	listing.UpdatedAt = now
+	if err := s.writeListing(ctx, *listing); err != nil {
+		return nil, err
+	}
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO dev_listing_moderation_actions (id,listing_id,report_id,actor_id,action,reason,created_at) VALUES (?,?,?,?,?,?,?)`, uuid.New().String(), listingID.String(), reportID.String(), actorID.String(), action, nullString(strings.TrimSpace(reason)), now.Format(time.RFC3339Nano)); err != nil {
+		return nil, err
+	}
+	return copyListing(*listing), nil
 }
 
 func (s *SQLiteStore) RecordDiscoveryEvents(ctx context.Context, events []DiscoveryEvent) (int, error) {

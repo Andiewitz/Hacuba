@@ -26,7 +26,7 @@ func TestPostgresDiscoveryAggregation(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer pool.Close()
-	for _, migration := range []string{"001_init.sql", "002_domain_fixes.sql", "003_public_contact_details.sql", "004_discovery_search.sql", "005_discovery_events.sql", "006_discovery_aggregation.sql"} {
+	for _, migration := range []string{"001_init.sql", "002_domain_fixes.sql", "003_public_contact_details.sql", "004_discovery_search.sql", "005_discovery_events.sql", "006_discovery_aggregation.sql", "007_moderation.sql"} {
 		body, err := os.ReadFile(filepath.Join("..", "..", "migrations", migration))
 		if err != nil {
 			t.Fatalf("read %s: %v", migration, err)

@@ -131,6 +131,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
                 <p className="mt-4 text-sm leading-[1.5] text-[var(--text-secondary-on-light)]">Hacuba helps you discover listings. You and the seller arrange viewings, terms, and payment directly.</p>
               </section>
             )}
+            <Link href={`/help?listing_id=${encodeURIComponent(listing.id)}`} className="mt-6 inline-flex text-sm font-semibold text-[var(--color-terracotta-ink)] underline underline-offset-4 hover:text-[var(--color-terracotta-active)]">Report this listing</Link>
           </aside>
         </div>
       </div>

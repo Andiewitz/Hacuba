@@ -267,6 +267,11 @@ unpublish, close, and archive controls.**
   a real control.
 - Add monitoring, structured errors, rate limits, and an operational runbook.
 
+**Moderation foundation: implemented.** Linked listing reports can now hide
+or restore a published listing through a staff-only Listings endpoint. Each
+decision is audited independently in Support and Listings, and sellers receive
+the moderation reason without reporter information.
+
 **Tests**
 
 - Verify favorites are per user and remain after refresh; cross-user favorite

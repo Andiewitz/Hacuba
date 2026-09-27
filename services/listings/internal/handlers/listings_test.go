@@ -99,6 +99,66 @@ func TestBuyerCannotCreateListing(t *testing.T) {
 	}
 }
 
+func TestStaffModerationHidesAndRestoresPublicListing(t *testing.T) {
+	secret := []byte("listings-test-secret-must-be-32-bytes!!")
+	store := listings.NewMemoryStore()
+	listingID, ownerID, staffID, reportID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	price, publishedAt := int64(680_000_000), time.Now().UTC()
+	if _, err := store.Create(t.Context(), listings.Listing{ID: listingID, OwnerID: ownerID, ListingMode: listings.ModeSale, PropertyType: listings.TypeHouse, Title: "Moderation test house", Description: "Published listing used to verify staff moderation behavior.", PriceCentavos: &price, Currency: "PHP", City: "Cebu City", Status: listings.StatusPublished, PublishedAt: &publishedAt}); err != nil {
+		t.Fatal(err)
+	}
+	mux := server.NewMux(config.Config{JWTSecret: secret}, store)
+	csrf := "staff-csrf"
+	sum := sha256.Sum256([]byte(csrf))
+	staffToken, err := authjwt.IssueAccess(secret, staffID, "staff", hex.EncodeToString(sum[:]), time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	moderate := func(action, reason string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/staff/listings/"+listingID.String()+"/moderate", strings.NewReader(`{"report_id":"`+reportID.String()+`","action":"`+action+`","reason":"`+reason+`"}`))
+		req.Header.Set("Authorization", "Bearer "+staffToken)
+		req.Header.Set("X-CSRF-Token", csrf)
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: "csrf_token", Value: csrf})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+	if hidden := moderate("hide", "The listing contains misleading location information."); hidden.Code != http.StatusOK || !strings.Contains(hidden.Body.String(), "moderation_hidden") {
+		t.Fatalf("hide = %d: %s", hidden.Code, hidden.Body.String())
+	}
+	public := httptest.NewRecorder()
+	mux.ServeHTTP(public, httptest.NewRequest(http.MethodGet, "/listings/"+listingID.String(), nil))
+	if public.Code != http.StatusNotFound {
+		t.Fatalf("hidden public listing = %d", public.Code)
+	}
+	owner, err := store.GetOwner(t.Context(), listingID, ownerID)
+	if err != nil || owner.ModerationReason == "" {
+		t.Fatalf("owner moderation notice = %#v, %v", owner, err)
+	}
+	if restored := moderate("restore", ""); restored.Code != http.StatusOK || !strings.Contains(restored.Body.String(), `"status":"published"`) {
+		t.Fatalf("restore = %d: %s", restored.Code, restored.Body.String())
+	}
+	public = httptest.NewRecorder()
+	mux.ServeHTTP(public, httptest.NewRequest(http.MethodGet, "/listings/"+listingID.String(), nil))
+	if public.Code != http.StatusOK {
+		t.Fatalf("restored public listing = %d", public.Code)
+	}
+	buyerToken, err := authjwt.IssueAccess(secret, uuid.Must(uuid.NewV7()), "buyer", hex.EncodeToString(sum[:]), time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	denied := httptest.NewRequest(http.MethodPost, "/staff/listings/"+listingID.String()+"/moderate", strings.NewReader(`{}`))
+	denied.Header.Set("Authorization", "Bearer "+buyerToken)
+	denied.Header.Set("X-CSRF-Token", csrf)
+	denied.AddCookie(&http.Cookie{Name: "csrf_token", Value: csrf})
+	deniedRec := httptest.NewRecorder()
+	mux.ServeHTTP(deniedRec, denied)
+	if deniedRec.Code != http.StatusForbidden {
+		t.Fatalf("buyer moderation = %d", deniedRec.Code)
+	}
+}
+
 func TestImageUploadPassesSignedHeadersAndRegistersObject(t *testing.T) {
 	secret := []byte("listings-test-secret-must-be-32-bytes!!")
 	store, objects := listings.NewMemoryStore(), &testObjectStore{}

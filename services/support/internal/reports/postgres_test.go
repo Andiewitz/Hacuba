@@ -37,6 +37,13 @@ func TestPostgresReportPersistence(t *testing.T) {
 	if _, err := pool.Exec(ctx, string(triageMigration)); err != nil {
 		t.Fatal(err)
 	}
+	linkedMigration, err := os.ReadFile(filepath.Join("..", "..", "migrations", "003_linked_listing.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, string(linkedMigration)); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := pool.Exec(ctx, "TRUNCATE support_report_actions, support_reports"); err != nil {
 		t.Fatal(err)
 	}

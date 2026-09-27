@@ -16,7 +16,8 @@ export type OwnedListing = {
   seller_name: string;
   contact_phone: string;
   contact_email: string;
-  status: "draft" | "published" | "closed" | "archived";
+  status: "draft" | "published" | "closed" | "archived" | "moderation_hidden";
+	moderation_reason?: string;
   updated_at: string;
 };
 

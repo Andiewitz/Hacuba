@@ -24,7 +24,7 @@ func NewSQLiteStore(ctx context.Context, path string) (*SQLiteStore, error) {
 	store := &SQLiteStore{db: db}
 	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS dev_reports (
 		id TEXT PRIMARY KEY, reporter_id TEXT, category TEXT NOT NULL, listing_reference TEXT,
-		contact_email TEXT, description TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+		listing_id TEXT, contact_email TEXT, description TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
 	)`); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("initialize support SQLite: %w", err)
@@ -34,7 +34,7 @@ func NewSQLiteStore(ctx context.Context, path string) (*SQLiteStore, error) {
 		db.Close()
 		return nil, err
 	}
-	hasUpdated := false
+	hasUpdated, hasListingID := false, false
 	for rows.Next() {
 		var cid int
 		var name, typ string
@@ -49,6 +49,9 @@ func NewSQLiteStore(ctx context.Context, path string) (*SQLiteStore, error) {
 		if name == "updated_at" {
 			hasUpdated = true
 		}
+		if name == "listing_id" {
+			hasListingID = true
+		}
 	}
 	rows.Close()
 	if !hasUpdated {
@@ -57,6 +60,12 @@ func NewSQLiteStore(ctx context.Context, path string) (*SQLiteStore, error) {
 			return nil, err
 		}
 		if _, err := db.ExecContext(ctx, `UPDATE dev_reports SET updated_at=created_at WHERE updated_at IS NULL`); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
+	if !hasListingID {
+		if _, err := db.ExecContext(ctx, `ALTER TABLE dev_reports ADD COLUMN listing_id TEXT`); err != nil {
 			db.Close()
 			return nil, err
 		}
@@ -77,7 +86,11 @@ func (s *SQLiteStore) Create(ctx context.Context, report Report) (*Report, error
 		reporter = report.ReporterID.String()
 	}
 	report.UpdatedAt = report.CreatedAt
-	_, err := s.db.ExecContext(ctx, `INSERT INTO dev_reports (id,reporter_id,category,listing_reference,contact_email,description,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)`, report.ID.String(), reporter, report.Category, nullString(report.ListingReference), nullString(report.ContactEmail), report.Description, report.Status, report.CreatedAt.Format(time.RFC3339Nano), report.UpdatedAt.Format(time.RFC3339Nano))
+	var listingID any
+	if report.ListingID != nil {
+		listingID = report.ListingID.String()
+	}
+	_, err := s.db.ExecContext(ctx, `INSERT INTO dev_reports (id,reporter_id,category,listing_reference,listing_id,contact_email,description,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`, report.ID.String(), reporter, report.Category, nullString(report.ListingReference), listingID, nullString(report.ContactEmail), report.Description, report.Status, report.CreatedAt.Format(time.RFC3339Nano), report.UpdatedAt.Format(time.RFC3339Nano))
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +98,7 @@ func (s *SQLiteStore) Create(ctx context.Context, report Report) (*Report, error
 }
 
 func (s *SQLiteStore) List(ctx context.Context, limit int) ([]Report, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,category,listing_reference,contact_email,description,status,created_at,updated_at FROM dev_reports ORDER BY created_at DESC LIMIT ?`, limit)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,category,listing_reference,listing_id,contact_email,description,status,created_at,updated_at FROM dev_reports ORDER BY created_at DESC LIMIT ?`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -93,9 +106,9 @@ func (s *SQLiteStore) List(ctx context.Context, limit int) ([]Report, error) {
 	out := []Report{}
 	for rows.Next() {
 		var id, created, updated string
-		var listing, email sql.NullString
+		var listing, linkedID, email sql.NullString
 		var report Report
-		if err := rows.Scan(&id, &report.Category, &listing, &email, &report.Description, &report.Status, &created, &updated); err != nil {
+		if err := rows.Scan(&id, &report.Category, &listing, &linkedID, &email, &report.Description, &report.Status, &created, &updated); err != nil {
 			return nil, err
 		}
 		parsed, err := uuid.Parse(id)
@@ -104,6 +117,13 @@ func (s *SQLiteStore) List(ctx context.Context, limit int) ([]Report, error) {
 		}
 		report.ID = parsed
 		report.ListingReference = listing.String
+		if linkedID.Valid {
+			parsedListingID, err := uuid.Parse(linkedID.String)
+			if err != nil {
+				return nil, err
+			}
+			report.ListingID = &parsedListingID
+		}
 		report.ContactEmail = email.String
 		report.CreatedAt, err = time.Parse(time.RFC3339Nano, created)
 		if err != nil {

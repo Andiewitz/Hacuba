@@ -376,6 +376,41 @@ func (h Handler) Archive(w http.ResponseWriter, r *http.Request) {
 	h.save(w, r, *l)
 }
 
+func (h Handler) Moderate(w http.ResponseWriter, r *http.Request) {
+	actor, ok := middleware.UserID(r.Context())
+	if !ok {
+		unauthorized(w)
+		return
+	}
+	listingID, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	var req struct {
+		ReportID uuid.UUID `json:"report_id"`
+		Action   string    `json:"action"`
+		Reason   string    `json:"reason"`
+	}
+	if !decode(w, r, &req) {
+		return
+	}
+	action, reason := strings.TrimSpace(req.Action), strings.TrimSpace(req.Reason)
+	if req.ReportID == uuid.Nil || (action != listings.ModerationHide && action != listings.ModerationRestore) || (action == listings.ModerationHide && (reason == "" || len(reason) > 500)) {
+		badRequest(w, map[string]string{"moderation": "report_id, action, and a reason up to 500 characters are required"})
+		return
+	}
+	updated, err := h.Store.Moderate(r.Context(), listingID, actor, req.ReportID, action, reason)
+	if errors.Is(err, listings.ErrNotFound) {
+		badRequest(w, map[string]string{"moderation": "listing cannot be moderated with this action"})
+		return
+	}
+	if err != nil {
+		internalError(w)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
 func (h Handler) GetPublic(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathID(w, r)
 	if !ok {

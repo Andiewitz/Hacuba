@@ -26,6 +26,7 @@ type Report struct {
 	ReporterID       *uuid.UUID `json:"-"`
 	Category         string     `json:"category"`
 	ListingReference string     `json:"listing_reference,omitempty"`
+	ListingID        *uuid.UUID `json:"listing_id,omitempty"`
 	ContactEmail     string     `json:"contact_email,omitempty"`
 	Description      string     `json:"description"`
 	Status           string     `json:"status"`

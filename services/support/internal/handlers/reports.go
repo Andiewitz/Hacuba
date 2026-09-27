@@ -45,6 +45,7 @@ func (h *Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
 	var input struct {
 		Category         string `json:"category"`
 		ListingReference string `json:"listing_reference"`
+		ListingID        string `json:"listing_id"`
 		ContactEmail     string `json:"contact_email"`
 		Description      string `json:"description"`
 	}
@@ -56,6 +57,14 @@ func (h *Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	report := reports.Report{ID: uuid.Must(uuid.NewV7()), Category: strings.TrimSpace(input.Category), ListingReference: strings.TrimSpace(input.ListingReference), ContactEmail: strings.TrimSpace(input.ContactEmail), Description: strings.TrimSpace(input.Description), Status: reports.StatusOpen}
+	if raw := strings.TrimSpace(input.ListingID); raw != "" {
+		listingID, err := uuid.Parse(raw)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "bad request", "fields": map[string]string{"listing_id": "must be a listing UUID"}})
+			return
+		}
+		report.ListingID = &listingID
+	}
 	if userID, valid := optionalReporterID(r, h.JWTKey); valid {
 		report.ReporterID = &userID
 	} else if r.Header.Get("Authorization") != "" {

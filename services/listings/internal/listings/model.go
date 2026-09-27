@@ -17,41 +17,60 @@ const (
 	TypeLot        = "lot"
 	TypeCommercial = "commercial"
 
-	StatusDraft     = "draft"
-	StatusPublished = "published"
-	StatusClosed    = "closed"
-	StatusArchived  = "archived"
+	StatusDraft            = "draft"
+	StatusPublished        = "published"
+	StatusClosed           = "closed"
+	StatusArchived         = "archived"
+	StatusModerationHidden = "moderation_hidden"
 )
 
 // Listing holds the domain model. Nullable fields stay pointers so a draft
 // can be incomplete without manufacturing misleading zero values.
 type Listing struct {
-	ID            uuid.UUID       `json:"id"`
-	OwnerID       uuid.UUID       `json:"-"`
-	ListingMode   string          `json:"listing_mode,omitempty"`
-	PropertyType  string          `json:"property_type,omitempty"`
-	Title         string          `json:"title,omitempty"`
-	Description   string          `json:"description,omitempty"`
-	PriceCentavos *int64          `json:"price_centavos,omitempty"`
-	Currency      string          `json:"currency"`
-	PricePeriod   *string         `json:"price_period,omitempty"`
-	City          string          `json:"city,omitempty"`
-	Barangay      *string         `json:"barangay,omitempty"`
-	AddressLine   *string         `json:"-"`
-	Lat           *float64        `json:"lat,omitempty"`
-	Lng           *float64        `json:"lng,omitempty"`
-	Bedrooms      *int16          `json:"bedrooms,omitempty"`
-	Bathrooms     *int16          `json:"bathrooms,omitempty"`
-	FloorAreaSQM  *float64        `json:"floor_area_sqm,omitempty"`
-	LotAreaSQM    *float64        `json:"lot_area_sqm,omitempty"`
-	Details       json.RawMessage `json:"details,omitempty"`
-	SellerName    string          `json:"seller_name,omitempty"`
-	ContactPhone  string          `json:"contact_phone,omitempty"`
-	ContactEmail  string          `json:"contact_email,omitempty"`
-	Status        string          `json:"status"`
-	PublishedAt   *time.Time      `json:"published_at,omitempty"`
-	CreatedAt     time.Time       `json:"created_at"`
-	UpdatedAt     time.Time       `json:"updated_at"`
+	ID                 uuid.UUID       `json:"id"`
+	OwnerID            uuid.UUID       `json:"-"`
+	ListingMode        string          `json:"listing_mode,omitempty"`
+	PropertyType       string          `json:"property_type,omitempty"`
+	Title              string          `json:"title,omitempty"`
+	Description        string          `json:"description,omitempty"`
+	PriceCentavos      *int64          `json:"price_centavos,omitempty"`
+	Currency           string          `json:"currency"`
+	PricePeriod        *string         `json:"price_period,omitempty"`
+	City               string          `json:"city,omitempty"`
+	Barangay           *string         `json:"barangay,omitempty"`
+	AddressLine        *string         `json:"-"`
+	Lat                *float64        `json:"lat,omitempty"`
+	Lng                *float64        `json:"lng,omitempty"`
+	Bedrooms           *int16          `json:"bedrooms,omitempty"`
+	Bathrooms          *int16          `json:"bathrooms,omitempty"`
+	FloorAreaSQM       *float64        `json:"floor_area_sqm,omitempty"`
+	LotAreaSQM         *float64        `json:"lot_area_sqm,omitempty"`
+	Details            json.RawMessage `json:"details,omitempty"`
+	SellerName         string          `json:"seller_name,omitempty"`
+	ContactPhone       string          `json:"contact_phone,omitempty"`
+	ContactEmail       string          `json:"contact_email,omitempty"`
+	Status             string          `json:"status"`
+	PublishedAt        *time.Time      `json:"published_at,omitempty"`
+	CreatedAt          time.Time       `json:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at"`
+	ModerationReason   string          `json:"moderation_reason,omitempty"`
+	ModerationReportID *uuid.UUID      `json:"moderation_report_id,omitempty"`
+	ModeratedAt        *time.Time      `json:"moderated_at,omitempty"`
+}
+
+const (
+	ModerationHide    = "hide"
+	ModerationRestore = "restore"
+)
+
+type ModerationAction struct {
+	ID        uuid.UUID `json:"id"`
+	ListingID uuid.UUID `json:"listing_id"`
+	ReportID  uuid.UUID `json:"report_id"`
+	ActorID   uuid.UUID `json:"actor_id"`
+	Action    string    `json:"action"`
+	Reason    string    `json:"reason,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Image struct {

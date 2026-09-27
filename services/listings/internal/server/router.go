@@ -39,6 +39,9 @@ func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.O
 		return middleware.Authenticate(cfg.JWTSecret, middleware.RequireSeller(next))
 	}
 	writes := func(next http.Handler) http.Handler { return authenticated(middleware.RequireCSRF(next)) }
+	staffWrites := func(next http.Handler) http.Handler {
+		return middleware.Authenticate(cfg.JWTSecret, middleware.RequireStaff(middleware.RequireCSRF(next)))
+	}
 	mux.Handle("GET /me/listings", authenticated(http.HandlerFunc(h.ListMine)))
 	mux.Handle("POST /listings", writes(http.HandlerFunc(h.Create)))
 	mux.Handle("PATCH /listings/{id}", writes(http.HandlerFunc(h.Patch)))
@@ -49,5 +52,6 @@ func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.O
 	mux.Handle("POST /listings/{id}/images/presign", writes(http.HandlerFunc(h.PresignImage)))
 	mux.Handle("POST /listings/{id}/images", writes(http.HandlerFunc(h.RegisterImage)))
 	mux.Handle("DELETE /listings/{id}/images/{imageId}", writes(http.HandlerFunc(h.DeleteImage)))
+	mux.Handle("POST /staff/listings/{id}/moderate", staffWrites(http.HandlerFunc(h.Moderate)))
 	return mux
 }

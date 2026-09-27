@@ -8,6 +8,7 @@ type Report = {
   id: string;
   category: string;
   listing_reference?: string;
+	listing_id?: string;
   contact_email?: string;
   description: string;
   status: "open" | "triaged" | "resolved";
@@ -16,10 +17,11 @@ type Report = {
 };
 
 export default function SupportQueuePage() {
-  const { user, accessToken, initialized } = useAppSelector((state) => state.auth);
+  const { user, accessToken, csrfToken, initialized } = useAppSelector((state) => state.auth);
   const [reports, setReports] = useState<Report[]>([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+	const [reasons, setReasons] = useState<Record<string, string>>({});
   const isStaff = user?.role === "staff" && Boolean(accessToken);
 
   useEffect(() => {
@@ -58,6 +60,28 @@ export default function SupportQueuePage() {
     setReports((current) => current.map((report) => (report.id === id ? { ...report, ...updated } : report)));
   };
 
+	const moderate = async (report: Report, action: "hide" | "restore") => {
+		if (!accessToken || !csrfToken || !report.listing_id) return;
+		const reason = reasons[report.id]?.trim() ?? "";
+		if (action === "hide" && !reason) {
+			setMessage("Add a clear reason before hiding this listing.");
+			return;
+		}
+		setMessage("");
+		const response = await fetch(`/api/listings/staff/${report.listing_id}/moderate`, {
+			method: "POST",
+			credentials: "same-origin",
+			headers: { Authorization: `Bearer ${accessToken}`, "X-CSRF-Token": csrfToken, "Content-Type": "application/json" },
+			body: JSON.stringify({ report_id: report.id, action, reason }),
+		});
+		if (!response.ok) {
+			setMessage("Couldn’t apply that listing action.");
+			return;
+		}
+		setReasons((current) => ({ ...current, [report.id]: "" }));
+		setMessage(action === "hide" ? "Listing hidden. Mark the report triaged or resolved when ready." : "Listing restored.");
+	};
+
   if (!initialized || (isStaff && loading)) return <LoadingQueue />;
   if (!isStaff) {
     return (
@@ -91,6 +115,7 @@ export default function SupportQueuePage() {
                   <p className="mt-3 max-w-[72ch] whitespace-pre-wrap text-sm leading-6 text-foreground">{report.description}</p>
                   {report.listing_reference && <p className="mt-3 break-all text-sm text-muted-foreground">Listing: {report.listing_reference}</p>}
                   {report.contact_email && <p className="mt-1 text-sm text-muted-foreground">Reply: {report.contact_email}</p>}
+				  {report.listing_id && <div className="mt-5 max-w-[52ch] rounded-[var(--radius-md)] border border-border bg-background p-4"><p className="text-sm font-semibold text-foreground">Listing moderation</p><p className="mt-1 text-sm leading-6 text-muted-foreground">A listing action is recorded with this report. The seller sees the decision reason, not reporter details.</p><label className="mt-3 block text-sm font-semibold text-foreground">Reason<textarea value={reasons[report.id] ?? ""} onChange={(event) => setReasons((current) => ({ ...current, [report.id]: event.target.value }))} maxLength={500} className="mt-2 min-h-20 w-full rounded-[var(--radius-sm)] border border-border bg-card px-3 py-2 text-sm font-normal text-foreground outline-none focus:ring-2 focus:ring-[var(--color-terracotta)]" placeholder="Explain the moderation decision to the seller." /></label><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => moderate(report, "hide")} disabled={report.status === "resolved" || !(reasons[report.id] ?? "").trim()} className="rounded-[var(--radius-md)] bg-[var(--color-terracotta)] px-4 py-3 text-sm font-semibold text-black disabled:opacity-50">Hide listing</button><button type="button" onClick={() => moderate(report, "restore")} className="rounded-[var(--radius-md)] border border-border px-4 py-3 text-sm font-semibold text-foreground">Restore listing</button></div></div>}
                 </div>
                 {report.status !== "resolved" && (
                   <div className="flex gap-2">

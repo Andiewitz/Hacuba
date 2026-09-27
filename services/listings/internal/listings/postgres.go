@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -201,6 +202,33 @@ func (s *PostgresStore) DeleteImage(ctx context.Context, listingID, imageID, own
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (s *PostgresStore) Moderate(ctx context.Context, listingID, actorID, reportID uuid.UUID, action, reason string) (*Listing, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	var listing *Listing
+	if action == ModerationHide {
+		now := time.Now().UTC()
+		listing, err = scanListing(tx.QueryRow(ctx, `UPDATE listings SET status=$1, moderation_reason=$2, moderation_report_id=$3, moderated_at=$4, updated_at=now() WHERE id=$5 AND status='published' RETURNING `+listingJSON, StatusModerationHidden, reason, reportID, now, listingID))
+	} else if action == ModerationRestore {
+		listing, err = scanListing(tx.QueryRow(ctx, `UPDATE listings SET status=$1, moderation_reason=NULL, moderation_report_id=NULL, moderated_at=NULL, published_at=now(), updated_at=now() WHERE id=$2 AND status=$3 RETURNING `+listingJSON, StatusPublished, listingID, StatusModerationHidden))
+	} else {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO listing_moderation_actions (id,listing_id,report_id,actor_id,action,reason) VALUES ($1,$2,$3,$4,$5,$6)`, uuid.New(), listingID, reportID, actorID, action, nullString(reason)); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return listing, nil
 }
 
 func (s *PostgresStore) RecordDiscoveryEvents(ctx context.Context, events []DiscoveryEvent) (int, error) {

@@ -57,6 +57,18 @@ func RequireSeller(next http.Handler) http.Handler {
 	})
 }
 
+func RequireStaff(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if Role(r.Context()) != "staff" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "staff role required"})
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func RequireCSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("X-CSRF-Token")
@@ -79,6 +91,11 @@ func RequireCSRF(next http.Handler) http.Handler {
 func UserID(ctx context.Context) (uuid.UUID, bool) {
 	id, ok := ctx.Value(userIDKey).(uuid.UUID)
 	return id, ok && id != uuid.Nil
+}
+
+func Role(ctx context.Context) string {
+	role, _ := ctx.Value(roleKey).(string)
+	return role
 }
 
 func unauthorized(w http.ResponseWriter) {

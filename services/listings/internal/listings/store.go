@@ -21,6 +21,7 @@ type Store interface {
 	ListImages(context.Context, uuid.UUID) ([]Image, error)
 	AddImage(context.Context, Image, uuid.UUID) (*Image, error)
 	DeleteImage(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error
+	Moderate(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string, string) (*Listing, error)
 	RecordDiscoveryEvents(context.Context, []DiscoveryEvent) (int, error)
 	GetDiscoveryProfile(context.Context, uuid.UUID) (DiscoveryProfile, error)
 	ListViewedListingIDs(context.Context, uuid.UUID) ([]uuid.UUID, error)
