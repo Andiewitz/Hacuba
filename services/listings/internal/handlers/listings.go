@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,9 +24,44 @@ type Handler struct {
 	Objects images.ObjectStore
 }
 
+type discoveryRateWindow struct {
+	started  time.Time
+	requests int
+}
+
+var discoveryRateLimiter = struct {
+	sync.Mutex
+	windows map[string]discoveryRateWindow
+}{windows: map[string]discoveryRateWindow{}}
+
+func allowDiscoveryRequest(remote string) bool {
+	host, _, err := net.SplitHostPort(remote)
+	if err != nil {
+		host = remote
+	}
+	now := time.Now()
+	discoveryRateLimiter.Lock()
+	defer discoveryRateLimiter.Unlock()
+	window := discoveryRateLimiter.windows[host]
+	if window.started.IsZero() || now.Sub(window.started) >= time.Minute {
+		window = discoveryRateWindow{started: now}
+	}
+	if window.requests >= 120 {
+		discoveryRateLimiter.windows[host] = window
+		return false
+	}
+	window.requests++
+	discoveryRateLimiter.windows[host] = window
+	return true
+}
+
 // RecordDiscoveryEvents accepts a bounded client batch. Viewer IDs are
 // rotating UUIDs; the service intentionally does not persist IP addresses.
 func (h Handler) RecordDiscoveryEvents(w http.ResponseWriter, r *http.Request) {
+	if !allowDiscoveryRequest(r.RemoteAddr) {
+		writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "too many discovery events"})
+		return
+	}
 	var req struct {
 		ViewerID uuid.UUID `json:"viewer_id"`
 		Events   []struct {

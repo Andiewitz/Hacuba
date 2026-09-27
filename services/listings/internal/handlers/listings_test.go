@@ -241,6 +241,34 @@ func TestDiscoveryEventsAcceptOnlyPublishedListings(t *testing.T) {
 	}
 }
 
+func TestDiscoveryEventsRateLimit(t *testing.T) {
+	store := listings.NewMemoryStore()
+	listingID, ownerID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	price, publishedAt := int64(100_000_000), time.Now().UTC()
+	_, err := store.Create(t.Context(), listings.Listing{ID: listingID, OwnerID: ownerID, ListingMode: listings.ModeSale, PropertyType: listings.TypeHouse, Title: "Rate limited discovery home", Description: "Published listing used for rate limit validation.", PriceCentavos: &price, Currency: "PHP", City: "Cebu City", Status: listings.StatusPublished, PublishedAt: &publishedAt})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mux := server.NewMux(config.Config{JWTSecret: []byte("listings-test-secret-must-be-32-bytes!!")}, store)
+	body := `{"viewer_id":"` + uuid.Must(uuid.NewV7()).String() + `","events":[{"listing_id":"` + listingID.String() + `","event_type":"impression"}]}`
+	for attempt := 0; attempt < 120; attempt++ {
+		req := httptest.NewRequest(http.MethodPost, "/discovery/events", strings.NewReader(body))
+		req.RemoteAddr = "198.51.100.42:41234"
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("request %d = %d: %s", attempt+1, rec.Code, rec.Body.String())
+		}
+	}
+	req := httptest.NewRequest(http.MethodPost, "/discovery/events", strings.NewReader(body))
+	req.RemoteAddr = "198.51.100.42:41234"
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusTooManyRequests {
+		t.Fatalf("request over the per-minute limit = %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func sellerToken(t *testing.T, secret []byte, id uuid.UUID) (string, string) {
 	t.Helper()
 	csrf := "csrf-value-" + id.String()
