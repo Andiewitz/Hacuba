@@ -47,7 +47,7 @@ func (s *SQLiteStore) initialize(ctx context.Context) error {
 			id TEXT PRIMARY KEY,
 			email TEXT NOT NULL UNIQUE,
 			password_hash TEXT NOT NULL,
-			role TEXT NOT NULL CHECK(role IN ('buyer', 'seller')),
+			role TEXT NOT NULL CHECK(role IN ('buyer', 'seller', 'staff')),
 			created_at TEXT NOT NULL
 		);
 		CREATE TABLE IF NOT EXISTS dev_auth_refresh_sessions (
@@ -62,6 +62,31 @@ func (s *SQLiteStore) initialize(ctx context.Context) error {
 	`)
 	if err != nil {
 		return fmt.Errorf("initialize development SQLite: %w", err)
+	}
+	var schema string
+	if err := s.db.QueryRowContext(ctx, `SELECT sql FROM sqlite_master WHERE type='table' AND name='dev_auth_users'`).Scan(&schema); err != nil {
+		return err
+	}
+	if !strings.Contains(schema, "'staff'") {
+		tx, err := s.db.BeginTx(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("begin development staff role migration: %w", err)
+		}
+		defer tx.Rollback()
+		statements := []string{
+			`CREATE TABLE dev_auth_users_next (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('buyer', 'seller', 'staff')), created_at TEXT NOT NULL)`,
+			`INSERT INTO dev_auth_users_next SELECT id,email,password_hash,role,created_at FROM dev_auth_users`,
+			`DROP TABLE dev_auth_users`,
+			`ALTER TABLE dev_auth_users_next RENAME TO dev_auth_users`,
+		}
+		for _, statement := range statements {
+			if _, err := tx.ExecContext(ctx, statement); err != nil {
+				return fmt.Errorf("migrate development staff role: %w", err)
+			}
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit development staff role migration: %w", err)
+		}
 	}
 	return nil
 }

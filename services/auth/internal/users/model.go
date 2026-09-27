@@ -10,6 +10,7 @@ import (
 const (
 	RoleBuyer  = "buyer"
 	RoleSeller = "seller"
+	RoleStaff  = "staff"
 )
 
 // User is the canonical identity row. ID is a UUIDv7 generated in Go
@@ -27,6 +28,9 @@ type User struct {
 func NormalizeRole(role string) string {
 	if role == RoleSeller {
 		return RoleSeller
+	}
+	if role == RoleStaff {
+		return RoleStaff
 	}
 	return RoleBuyer
 }

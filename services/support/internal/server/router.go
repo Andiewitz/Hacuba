@@ -19,6 +19,8 @@ func NewMux(cfg config.Config, store reports.Store, reportMetrics *metrics.Metri
 	})
 	mux.Handle("GET /metrics", promhttp.HandlerFor(reportMetrics.Registry, promhttp.HandlerOpts{}))
 	mux.HandleFunc("POST /reports", h.CreateReport)
+	mux.HandleFunc("GET /staff/reports", h.ListReports)
+	mux.HandleFunc("PATCH /staff/reports/{id}", h.TransitionReport)
 	return withSecurityHeaders(mux)
 }
 

@@ -49,10 +49,15 @@ func Register(cfg config.Config, store users.Store) http.HandlerFunc {
 			return
 		}
 
+		role := users.RoleBuyer
+		if cfg.IsStaffEmail(email) {
+			role = users.RoleStaff
+		}
 		user, err := store.CreateUser(r.Context(), users.User{
 			ID:           id,
 			Email:        email,
 			PasswordHash: string(hash),
+			Role:         role,
 		})
 		if err != nil {
 			if errors.Is(err, users.ErrEmailTaken) {

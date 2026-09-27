@@ -176,8 +176,9 @@ export default function Navbar() {
                         Signed in as {user.email}
                       </p>
                       <p className="px-4 pb-2 text-xs text-muted-foreground">
-                        {user.role === "seller" ? "Seller account" : "Buyer account"}
+                        {user.role === "staff" ? "Staff account" : user.role === "seller" ? "Seller account" : "Buyer account"}
                       </p>
+                      {user.role === "staff" && <Link role="menuitem" href="/support" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted"><LifeBuoy className="h-4 w-4" />Support queue</Link>}
                       <div className="mb-1 h-px bg-border" />
                       <button
                         role="menuitem"

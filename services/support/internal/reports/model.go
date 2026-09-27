@@ -15,6 +15,8 @@ const (
 	CategoryBug     = "bug"
 	CategoryAccount = "account"
 	StatusOpen      = "open"
+	StatusTriaged   = "triaged"
+	StatusResolved  = "resolved"
 )
 
 var ErrNotFound = errors.New("not found")
@@ -28,11 +30,27 @@ type Report struct {
 	Description      string     `json:"description"`
 	Status           string     `json:"status"`
 	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+type Action struct {
+	ID         uuid.UUID `json:"id"`
+	ReportID   uuid.UUID `json:"report_id"`
+	ActorID    uuid.UUID `json:"actor_id"`
+	FromStatus string    `json:"from_status"`
+	ToStatus   string    `json:"to_status"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 type Store interface {
 	Create(context.Context, Report) (*Report, error)
 	OpenCount(context.Context) (int, error)
+	List(context.Context, int) ([]Report, error)
+	Transition(context.Context, uuid.UUID, uuid.UUID, string) (*Report, error)
+}
+
+func ValidTransition(from, to string) bool {
+	return (from == StatusOpen && (to == StatusTriaged || to == StatusResolved)) || (from == StatusTriaged && to == StatusResolved)
 }
 
 func Validate(input Report) map[string]string {

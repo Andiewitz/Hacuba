@@ -61,7 +61,7 @@ func VerifyAccess(secret []byte, raw string) (Claims, error) {
 	if _, err := uuid.Parse(claims.Subject); err != nil {
 		return Claims{}, fmt.Errorf("invalid sub claim: %w", err)
 	}
-	if claims.Role != "buyer" && claims.Role != "seller" {
+	if claims.Role != "buyer" && claims.Role != "seller" && claims.Role != "staff" {
 		return Claims{}, fmt.Errorf("invalid role claim")
 	}
 	return claims, nil

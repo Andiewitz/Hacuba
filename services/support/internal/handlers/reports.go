@@ -77,6 +77,49 @@ func (h *Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]any{"id": created.ID, "status": created.Status, "created_at": created.CreatedAt})
 }
 
+func (h *Handler) ListReports(w http.ResponseWriter, r *http.Request) {
+	if _, ok := staffID(r, h.JWTKey); !ok {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "staff access required"})
+		return
+	}
+	items, err := h.Store.List(r.Context(), 100)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not load reports"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"reports": items})
+}
+
+func (h *Handler) TransitionReport(w http.ResponseWriter, r *http.Request) {
+	actor, ok := staffID(r, h.JWTKey)
+	if !ok {
+		writeJSON(w, http.StatusForbidden, map[string]string{"error": "staff access required"})
+		return
+	}
+	id, err := uuid.Parse(r.PathValue("id"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid report id"})
+		return
+	}
+	var input struct {
+		Status string `json:"status"`
+	}
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&input); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid report update"})
+		return
+	}
+	report, err := h.Store.Transition(r.Context(), id, actor, strings.TrimSpace(input.Status))
+	if err != nil {
+		if err == reports.ErrNotFound {
+			writeJSON(w, http.StatusConflict, map[string]string{"error": "report status cannot be changed"})
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not update report"})
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
+}
+
 func (h *Handler) clientAddress(r *http.Request) string {
 	if len(h.ProxyKey) > 0 && subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Hacuba-Support-Proxy")), h.ProxyKey) == 1 {
 		if forwarded := strings.TrimSpace(strings.Split(r.Header.Get("X-Forwarded-For"), ",")[0]); forwarded != "" {
@@ -93,6 +136,19 @@ func optionalReporterID(r *http.Request, secret []byte) (uuid.UUID, bool) {
 	}
 	claims, err := authjwt.VerifyAccess(secret, parts[1])
 	if err != nil {
+		return uuid.Nil, false
+	}
+	id, err := claims.UserID()
+	return id, err == nil
+}
+
+func staffID(r *http.Request, secret []byte) (uuid.UUID, bool) {
+	parts := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
+		return uuid.Nil, false
+	}
+	claims, err := authjwt.VerifyAccess(secret, parts[1])
+	if err != nil || claims.Role != "staff" {
 		return uuid.Nil, false
 	}
 	id, err := claims.UserID()

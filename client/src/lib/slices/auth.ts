@@ -1,7 +1,7 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import type { RootState } from "@/lib/store";
 
-export type AuthRole = "buyer" | "seller";
+export type AuthRole = "buyer" | "seller" | "staff";
 
 export interface AuthUser {
   id: string;

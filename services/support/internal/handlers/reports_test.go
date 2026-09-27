@@ -6,7 +6,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/hacuba/authjwt"
 	"github.com/hacuba/support/internal/metrics"
 	"github.com/hacuba/support/internal/reports"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -32,6 +35,51 @@ func TestCreateReportStoresPrivateDetailsAndEmitsBoundedMetrics(t *testing.T) {
 	}
 	if strings.Contains(output, "buyer@example.test") || strings.Contains(output, "transfer a deposit") || strings.Contains(output, "example") {
 		t.Fatalf("private report content leaked to metrics: %s", output)
+	}
+}
+
+func TestStaffCanTriageReportsButBuyersCannot(t *testing.T) {
+	store := reports.NewMemoryStore()
+	secret := []byte("support-test-secret-must-be-at-least-32-bytes")
+	handler := New(store, metrics.New(store), secret, nil)
+	created, err := store.Create(t.Context(), reports.Report{ID: uuid.New(), Category: reports.CategoryListing, Description: "This listing repeats misleading information about the property location.", Status: reports.StatusOpen})
+	if err != nil {
+		t.Fatal(err)
+	}
+	issue := func(role string) string {
+		token, err := authjwt.IssueAccess(secret, uuid.New(), role, "csrf", time.Minute)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return token
+	}
+	buyerList := httptest.NewRecorder()
+	buyerRequest := httptest.NewRequest(http.MethodGet, "/staff/reports", nil)
+	buyerRequest.Header.Set("Authorization", "Bearer "+issue("buyer"))
+	handler.ListReports(buyerList, buyerRequest)
+	if buyerList.Code != http.StatusForbidden {
+		t.Fatalf("buyer queue = %d", buyerList.Code)
+	}
+	staffList := httptest.NewRecorder()
+	staffRequest := httptest.NewRequest(http.MethodGet, "/staff/reports", nil)
+	staffRequest.Header.Set("Authorization", "Bearer "+issue("staff"))
+	handler.ListReports(staffList, staffRequest)
+	if staffList.Code != http.StatusOK || !strings.Contains(staffList.Body.String(), created.Description) {
+		t.Fatalf("staff queue = %d: %s", staffList.Code, staffList.Body.String())
+	}
+	staffID := uuid.New()
+	staffToken, err := authjwt.IssueAccess(secret, staffID, "staff", "csrf", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transition := httptest.NewRequest(http.MethodPatch, "/staff/reports/"+created.ID.String(), strings.NewReader(`{"status":"triaged"}`))
+	transition.SetPathValue("id", created.ID.String())
+	transition.Header.Set("Authorization", "Bearer "+staffToken)
+	transition.Header.Set("Content-Type", "application/json")
+	transitionRec := httptest.NewRecorder()
+	handler.TransitionReport(transitionRec, transition)
+	if transitionRec.Code != http.StatusOK || !strings.Contains(transitionRec.Body.String(), `"status":"triaged"`) {
+		t.Fatalf("staff transition = %d: %s", transitionRec.Code, transitionRec.Body.String())
 	}
 }
 

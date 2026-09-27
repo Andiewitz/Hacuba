@@ -40,7 +40,7 @@ func openTestDB(t *testing.T) *PostgresStore {
 		t.Skipf("postgres ping failed: %v", err)
 	}
 
-	for _, migration := range []string{"001_init.sql", "002_roles.sql"} {
+	for _, migration := range []string{"001_init.sql", "002_roles.sql", "003_staff_role.sql"} {
 		migPath := filepath.Join("..", "..", "migrations", migration)
 		sql, err := os.ReadFile(migPath)
 		if err != nil {

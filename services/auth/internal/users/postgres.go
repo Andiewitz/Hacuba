@@ -42,9 +42,9 @@ func (s *PostgresStore) Close() {
 
 func (s *PostgresStore) CreateUser(ctx context.Context, user User) (*User, error) {
 	row := s.pool.QueryRow(ctx,
-		`INSERT INTO users (id, email, password_hash) VALUES ($1, $2, $3)
+		`INSERT INTO users (id, email, password_hash, role) VALUES ($1, $2, $3, $4)
 		 RETURNING id, email, password_hash, role, created_at`,
-		user.ID, user.Email, user.PasswordHash,
+		user.ID, user.Email, user.PasswordHash, NormalizeRole(user.Role),
 	)
 	var created User
 	if err := row.Scan(&created.ID, &created.Email, &created.PasswordHash, &created.Role, &created.CreatedAt); err != nil {

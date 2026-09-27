@@ -30,7 +30,14 @@ func TestPostgresReportPersistence(t *testing.T) {
 	if _, err := pool.Exec(ctx, string(migration)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, "TRUNCATE support_reports"); err != nil {
+	triageMigration, err := os.ReadFile(filepath.Join("..", "..", "migrations", "002_triage.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, string(triageMigration)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, "TRUNCATE support_report_actions, support_reports"); err != nil {
 		t.Fatal(err)
 	}
 	store, err := NewPostgresStore(ctx, dsn)
@@ -38,12 +45,27 @@ func TestPostgresReportPersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	_, err = store.Create(ctx, Report{ID: uuid.New(), Category: CategorySafety, Description: "The seller requested a payment before I could visit the property in person.", Status: StatusOpen})
+	created, err := store.Create(ctx, Report{ID: uuid.New(), Category: CategorySafety, Description: "The seller requested a payment before I could visit the property in person.", Status: StatusOpen})
 	if err != nil {
 		t.Fatal(err)
 	}
 	count, err := store.OpenCount(ctx)
 	if err != nil || count != 1 {
 		t.Fatalf("open reports = %d, %v", count, err)
+	}
+	updated, err := store.Transition(ctx, created.ID, uuid.New(), StatusTriaged)
+	if err != nil || updated.Status != StatusTriaged {
+		t.Fatalf("triage report = %#v, %v", updated, err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM support_report_actions WHERE report_id=$1`, created.ID).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("audit actions = %d, %v", count, err)
+	}
+	items, err := store.List(ctx, 10)
+	if err != nil || len(items) != 1 || items[0].ID != created.ID {
+		t.Fatalf("staff list = %#v, %v", items, err)
+	}
+	count, err = store.OpenCount(ctx)
+	if err != nil || count != 1 {
+		t.Fatalf("unresolved reports after triage = %d, %v", count, err)
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -28,6 +29,7 @@ type Config struct {
 
 	CookieDomain string
 	CookieSecure bool
+	StaffEmails  map[string]struct{}
 }
 
 func getEnv(key, fallback string) string {
@@ -81,6 +83,12 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("DATABASE_URL and DEV_SQLITE_PATH cannot both be set")
 	}
 
+	staffEmails := map[string]struct{}{}
+	for _, email := range strings.Split(os.Getenv("STAFF_EMAILS"), ",") {
+		if normalized := strings.ToLower(strings.TrimSpace(email)); normalized != "" {
+			staffEmails[normalized] = struct{}{}
+		}
+	}
 	return Config{
 		Port:          getEnv("PORT", "8080"),
 		DatabaseURL:   databaseURL,
@@ -90,7 +98,13 @@ func Load() (Config, error) {
 		RefreshTTL:    refreshTTL,
 		CookieDomain:  os.Getenv("COOKIE_DOMAIN"),
 		CookieSecure:  secure,
+		StaffEmails:   staffEmails,
 	}, nil
+}
+
+func (c Config) IsStaffEmail(email string) bool {
+	_, ok := c.StaffEmails[strings.ToLower(strings.TrimSpace(email))]
+	return ok
 }
 
 // EnsureProdReady fails fast when required prod settings are missing.
