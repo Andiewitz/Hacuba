@@ -1,6 +1,9 @@
+"use client";
 import { Bath, BedDouble, Ruler } from "lucide-react";
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { trackDiscovery } from "@/components/discovery-events";
 
 interface PropertyCardProps {
   id: string;
@@ -35,11 +38,13 @@ export default function PropertyCard({
   priority = false,
   href,
 }: PropertyCardProps) {
+  const cardRef = useRef<HTMLElement>(null);
+  useEffect(() => { const node = cardRef.current; if (!node) return; const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { trackDiscovery({ listing_id: id, event_type: "impression" }); observer.disconnect(); } }, { threshold: 0.6 }); observer.observe(node); return () => observer.disconnect(); }, [id]);
   const hasSpecs = bedrooms !== undefined || bathrooms !== undefined || areaSqm !== undefined;
   const destination = href === undefined ? `/listings/${id}` : href;
 
   const content = (
-    <article className="flex flex-col gap-3">
+    <article ref={cardRef} className="flex flex-col gap-3">
       <div className="relative aspect-[4/3] overflow-hidden rounded-[var(--radius-lg)] bg-card shadow-[var(--shadow-sm)]">
         {image ? (
           <Image
@@ -99,6 +104,7 @@ export default function PropertyCard({
   return (
     <Link
       href={destination}
+      onClick={() => trackDiscovery({ listing_id: id, event_type: "card_click" })}
       className="group block rounded-[var(--radius-lg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
     >
       {content}

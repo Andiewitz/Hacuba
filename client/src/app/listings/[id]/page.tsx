@@ -2,6 +2,7 @@ import { Bath, BedDouble, ChevronLeft, Mail, MapPin, Phone, Ruler } from "lucide
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ListingGallery from "@/components/listing-gallery";
+import DiscoveryDetailEvent from "@/components/discovery-detail-event";
 import ListingSection from "@/components/listing-section";
 import { getPublicListing, getRelatedListings, listingImageUrl } from "@/lib/listings";
 
@@ -41,6 +42,7 @@ export default async function ListingPage({ params }: ListingPageProps) {
 
   return (
     <main className="min-h-screen bg-background pb-16">
+      <DiscoveryDetailEvent listingID={listing.id} />
       <section className="border-b border-[var(--color-forest-border-subtle)] bg-[var(--color-forest)] px-6 py-4 md:px-10 lg:px-20">
         <div className="mx-auto max-w-[1440px]">
           <Link
