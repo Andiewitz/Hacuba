@@ -3,18 +3,21 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Replaces the owner-only index and avoids sorting each seller dashboard.
 DROP INDEX IF EXISTS idx_listings_owner_id;
-CREATE INDEX IF NOT EXISTS idx_listings_owner_created
+DROP INDEX IF EXISTS idx_listings_owner_created;
+CREATE INDEX idx_listings_owner_created
     ON listings (owner_id, created_at DESC, id DESC);
 
 -- These partial indexes contain only public candidates and match the API's
 -- deterministic keyset orderings.
-CREATE INDEX IF NOT EXISTS idx_listings_public_newest
+DROP INDEX IF EXISTS idx_listings_public_newest;
+DROP INDEX IF EXISTS idx_listings_public_price;
+CREATE INDEX idx_listings_public_newest
     ON listings (published_at DESC, id DESC)
     WHERE status = 'published';
-CREATE INDEX IF NOT EXISTS idx_listings_public_price_asc
+CREATE INDEX idx_listings_public_price_asc
     ON listings (price_centavos ASC, id ASC)
     WHERE status = 'published';
-CREATE INDEX IF NOT EXISTS idx_listings_public_price_desc
+CREATE INDEX idx_listings_public_price_desc
     ON listings (price_centavos DESC, id DESC)
     WHERE status = 'published';
 
