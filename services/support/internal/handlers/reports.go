@@ -44,6 +44,7 @@ func (h *Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
 	}
 	var input struct {
 		Category         string `json:"category"`
+		Reason           string `json:"reason"`
 		ListingReference string `json:"listing_reference"`
 		ListingID        string `json:"listing_id"`
 		ContactEmail     string `json:"contact_email"`
@@ -56,7 +57,7 @@ func (h *Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid report payload"})
 		return
 	}
-	report := reports.Report{ID: uuid.Must(uuid.NewV7()), Category: strings.TrimSpace(input.Category), ListingReference: strings.TrimSpace(input.ListingReference), ContactEmail: strings.TrimSpace(input.ContactEmail), Description: strings.TrimSpace(input.Description), Status: reports.StatusOpen}
+	report := reports.Report{ID: uuid.Must(uuid.NewV7()), Category: strings.TrimSpace(input.Category), Reason: strings.TrimSpace(input.Reason), ListingReference: strings.TrimSpace(input.ListingReference), ContactEmail: strings.TrimSpace(input.ContactEmail), Description: strings.TrimSpace(input.Description), Status: reports.StatusOpen}
 	if raw := strings.TrimSpace(input.ListingID); raw != "" {
 		listingID, err := uuid.Parse(raw)
 		if err != nil {

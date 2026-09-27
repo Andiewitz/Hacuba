@@ -27,9 +27,9 @@ func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 func (s *PostgresStore) Close() { s.pool.Close() }
 
 func (s *PostgresStore) Create(ctx context.Context, report Report) (*Report, error) {
-	err := s.pool.QueryRow(ctx, `INSERT INTO support_reports (id,reporter_id,category,listing_reference,listing_id,contact_email,description,status)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-		RETURNING created_at, updated_at`, report.ID, report.ReporterID, report.Category, nullString(report.ListingReference), report.ListingID, nullString(report.ContactEmail), report.Description, report.Status).Scan(&report.CreatedAt, &report.UpdatedAt)
+	err := s.pool.QueryRow(ctx, `INSERT INTO support_reports (id,reporter_id,category,reason,listing_reference,listing_id,contact_email,description,status)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		RETURNING created_at, updated_at`, report.ID, report.ReporterID, report.Category, nullString(report.Reason), nullString(report.ListingReference), report.ListingID, nullString(report.ContactEmail), report.Description, report.Status).Scan(&report.CreatedAt, &report.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (s *PostgresStore) Create(ctx context.Context, report Report) (*Report, err
 }
 
 func (s *PostgresStore) List(ctx context.Context, limit int) ([]Report, error) {
-	rows, err := s.pool.Query(ctx, `SELECT id,category,listing_reference,listing_id,contact_email,description,status,created_at,updated_at FROM support_reports ORDER BY created_at DESC LIMIT $1`, limit)
+	rows, err := s.pool.Query(ctx, `SELECT id,category,reason,listing_reference,listing_id,contact_email,description,status,created_at,updated_at FROM support_reports ORDER BY created_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -45,12 +45,15 @@ func (s *PostgresStore) List(ctx context.Context, limit int) ([]Report, error) {
 	out := []Report{}
 	for rows.Next() {
 		var r Report
-		var listingReference, contactEmail *string
-		if err := rows.Scan(&r.ID, &r.Category, &listingReference, &r.ListingID, &contactEmail, &r.Description, &r.Status, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		var reason, listingReference, contactEmail *string
+		if err := rows.Scan(&r.ID, &r.Category, &reason, &listingReference, &r.ListingID, &contactEmail, &r.Description, &r.Status, &r.CreatedAt, &r.UpdatedAt); err != nil {
 			return nil, err
 		}
 		if listingReference != nil {
 			r.ListingReference = *listingReference
+		}
+		if reason != nil {
+			r.Reason = *reason
 		}
 		if contactEmail != nil {
 			r.ContactEmail = *contactEmail

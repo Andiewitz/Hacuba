@@ -25,6 +25,7 @@ type Report struct {
 	ID               uuid.UUID  `json:"id"`
 	ReporterID       *uuid.UUID `json:"-"`
 	Category         string     `json:"category"`
+	Reason           string     `json:"reason,omitempty"`
 	ListingReference string     `json:"listing_reference,omitempty"`
 	ListingID        *uuid.UUID `json:"listing_id,omitempty"`
 	ContactEmail     string     `json:"contact_email,omitempty"`
@@ -60,6 +61,13 @@ func Validate(input Report) map[string]string {
 	case CategoryListing, CategorySafety, CategoryBug, CategoryAccount:
 	default:
 		fields["category"] = "choose listing, safety, bug, or account"
+	}
+	if input.Reason != "" {
+		switch input.Reason {
+		case "suspicious_payment", "misleading_information", "duplicate_or_unavailable", "inappropriate_content", "other":
+		default:
+			fields["reason"] = "choose a valid report reason"
+		}
 	}
 	if len(strings.TrimSpace(input.Description)) < 20 || len(input.Description) > 2_000 {
 		fields["description"] = "must be between 20 and 2,000 characters"

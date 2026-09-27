@@ -1,0 +1,1 @@
+ALTER TABLE support_reports ADD COLUMN IF NOT EXISTS reason TEXT;

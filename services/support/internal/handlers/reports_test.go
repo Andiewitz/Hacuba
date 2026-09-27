@@ -42,14 +42,14 @@ func TestCreateReportKeepsLinkedListingIDPrivate(t *testing.T) {
 	store := reports.NewMemoryStore()
 	handler := New(store, metrics.New(store), []byte("support-test-secret-must-be-at-least-32-bytes"), nil)
 	listingID := uuid.New()
-	req := httptest.NewRequest(http.MethodPost, "/reports", strings.NewReader(`{"category":"listing","listing_id":"`+listingID.String()+`","description":"The photos and property details do not appear to describe the same home."}`))
+	req := httptest.NewRequest(http.MethodPost, "/reports", strings.NewReader(`{"category":"listing","reason":"misleading_information","listing_id":"`+listingID.String()+`","description":"The photos and property details do not appear to describe the same home."}`))
 	rec := httptest.NewRecorder()
 	handler.CreateReport(rec, req)
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("create linked report = %d: %s", rec.Code, rec.Body.String())
 	}
 	items, err := store.List(t.Context(), 1)
-	if err != nil || len(items) != 1 || items[0].ListingID == nil || *items[0].ListingID != listingID {
+	if err != nil || len(items) != 1 || items[0].ListingID == nil || *items[0].ListingID != listingID || items[0].Reason != "misleading_information" {
 		t.Fatalf("linked report = %#v, %v", items, err)
 	}
 }
