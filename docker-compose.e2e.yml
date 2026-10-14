@@ -1,0 +1,120 @@
+# Disposable, production-mode application stack used by browser E2E tests.
+# Each Postgres database is private to its owning service. The Listings app is
+# published only because the browser needs the development object-store upload
+# URL; Postgres is never published.
+services:
+  auth:
+    build: ./services/auth
+    environment:
+      DATABASE_URL: postgres://auth_service:e2e-password@auth-db:5432/auth?sslmode=disable
+      JWT_SECRET: e2e-jwt-secret-must-be-at-least-thirty-two-bytes
+      COOKIE_SECURE: "false"
+      STAFF_EMAILS: e2e-staff@hacuba.test
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    ports: ["8080:8080"]
+    networks: [application, auth-internal]
+
+  auth-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth
+      POSTGRES_USER: auth_service
+      POSTGRES_PASSWORD: e2e-password
+    volumes:
+      - ./services/auth/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_service -d auth"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [auth-internal]
+
+  listings:
+    build:
+      context: .
+      dockerfile: services/listings/Dockerfile
+    environment:
+      DATABASE_URL: postgres://listings_service:e2e-password@listings-db:5432/listings?sslmode=disable
+      JWT_SECRET: e2e-jwt-secret-must-be-at-least-thirty-two-bytes
+      DEV_UPLOAD_PATH: /var/lib/hacuba-uploads
+      DEV_UPLOAD_URL: http://localhost:8081/dev-uploads
+      DISCOVERY_PROXY_SECRET: e2e-discovery-proxy-secret
+    depends_on:
+      listings-db:
+        condition: service_healthy
+    ports: ["8081:8081"]
+    volumes: [e2e-uploads:/var/lib/hacuba-uploads]
+    networks: [application, listings-internal]
+
+  listings-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: listings
+      POSTGRES_USER: listings_service
+      POSTGRES_PASSWORD: e2e-password
+    volumes:
+      - ./services/listings/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U listings_service -d listings"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [listings-internal]
+
+  support:
+    build:
+      context: .
+      dockerfile: services/support/Dockerfile
+    environment:
+      DATABASE_URL: postgres://support_service:e2e-password@support-db:5432/support?sslmode=disable
+      JWT_SECRET: e2e-jwt-secret-must-be-at-least-thirty-two-bytes
+      SUPPORT_PROXY_SECRET: e2e-support-proxy-secret
+    depends_on:
+      support-db:
+        condition: service_healthy
+    ports: ["8082:8082"]
+    networks: [application, support-internal]
+
+  support-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: support
+      POSTGRES_USER: support_service
+      POSTGRES_PASSWORD: e2e-password
+    volumes:
+      - ./services/support/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U support_service -d support"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    networks: [support-internal]
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    environment:
+      AUTH_API_URL: http://auth:8080
+      LISTINGS_API_URL: http://listings:8081
+      LISTINGS_IMAGE_BASE_URL: http://localhost:8081/dev-uploads
+      SUPPORT_API_URL: http://support:8082
+      SUPPORT_PROXY_SECRET: e2e-support-proxy-secret
+      DISCOVERY_PROXY_SECRET: e2e-discovery-proxy-secret
+    depends_on: [auth, listings, support]
+    ports: ["3000:3000"]
+    networks: [application]
+
+networks:
+  application:
+  auth-internal:
+    internal: true
+  listings-internal:
+    internal: true
+  support-internal:
+    internal: true
+
+volumes:
+  e2e-uploads:

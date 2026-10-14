@@ -12,6 +12,8 @@ node_modules/
 
 # testing
 /coverage
+/client/e2e/test-results/
+/client/e2e/playwright-report/
 
 # next.js
 .next/

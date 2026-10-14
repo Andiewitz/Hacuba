@@ -180,7 +180,9 @@ export async function getPublicListing(id: string) {
 
   try {
     const response = await fetch(`${apiUrl.replace(/\/$/, "")}/listings/${encodeURIComponent(id)}`, {
-      next: { revalidate: 60 },
+      // A listing can be hidden by moderation at any time. Never retain a
+      // public-detail response after that decision has taken effect.
+      cache: "no-store",
     });
     if (response.status === 404) return null;
     if (!response.ok) throw new Error("listing request failed");
@@ -194,7 +196,7 @@ export async function getRelatedListings(id: string) {
   const apiUrl = process.env.LISTINGS_API_URL;
   if (!apiUrl) return catalogue.filter((listing) => listing.id !== id).slice(0, 4);
   try {
-    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/listings/${encodeURIComponent(id)}/related`, { next: { revalidate: 60 } });
+    const response = await fetch(`${apiUrl.replace(/\/$/, "")}/listings/${encodeURIComponent(id)}/related`, { cache: "no-store" });
     if (!response.ok) return [];
     const data = await response.json() as { listings: ListingDetail[] };
     return data.listings.map(toCard);

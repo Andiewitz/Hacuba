@@ -46,3 +46,33 @@ jobs:
           cache-dependency-path: services/support/go.sum
       - run: go vet ./...
       - run: go test -race -count=1 ./...
+  smoke:
+    name: compose smoke (live HTTP)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/support
+    steps:
+      - uses: actions/checkout@v4
+      - name: bring up isolated stack
+        env:
+          DB_PASSWORD: smoke-test-pw
+          JWT_SECRET: smoke-test-secret-must-be-32-bytes-minimum!!
+          SUPPORT_PROXY_SECRET: smoke-proxy-secret
+          PORT: "8082"
+        run: |
+          printf 'DB_PASSWORD=smoke-test-pw\nJWT_SECRET=smoke-test-secret-must-be-32-bytes-minimum!!\nSUPPORT_PROXY_SECRET=smoke-proxy-secret\nPORT=8082\n' > .env
+          docker compose up -d --build
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8082/healthz && break
+            sleep 2
+          done
+          curl -sf http://localhost:8082/healthz
+      - name: run smoke contract
+        run: ./tests/compose.smoke.sh http://localhost:8082
+      - name: dump logs on failure
+        if: failure()
+        run: docker compose logs --no-color | tail -100
+      - name: tear down
+        if: always()
+        run: docker compose down -v

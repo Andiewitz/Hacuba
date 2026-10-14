@@ -44,11 +44,7 @@ func main() {
 			log.Fatalf("listings: image store: %v", err)
 		}
 		objects = s3Store
-	} else if cfg.DevSQLitePath != "" {
-		root := os.Getenv("DEV_UPLOAD_PATH")
-		if root == "" {
-			root = filepath.Join(filepath.Dir(cfg.DevSQLitePath), "uploads")
-		}
+	} else if root := developmentUploadRoot(cfg); root != "" {
 		publicURL := os.Getenv("DEV_UPLOAD_URL")
 		if publicURL == "" {
 			publicURL = fmt.Sprintf("http://localhost:%s/dev-uploads", cfg.Port)
@@ -63,4 +59,19 @@ func main() {
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: server.NewMuxWithObjects(cfg, store, objects), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	log.Printf("listings: listening on :%s", cfg.Port)
 	log.Fatal(srv.ListenAndServe())
+}
+
+// developmentUploadRoot keeps the disk-backed object store behind explicit
+// development settings. E2E runs use it with disposable Postgres databases so
+// the browser can exercise the same presign, upload, and registration contract
+// without production credentials. Production deployments leave DEV_UPLOAD_PATH
+// unset and must configure S3 instead.
+func developmentUploadRoot(cfg config.Config) string {
+	if root := os.Getenv("DEV_UPLOAD_PATH"); root != "" {
+		return root
+	}
+	if cfg.DevSQLitePath != "" {
+		return filepath.Join(filepath.Dir(cfg.DevSQLitePath), "uploads")
+	}
+	return ""
 }

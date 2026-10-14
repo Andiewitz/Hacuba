@@ -1,0 +1,72 @@
+name: end-to-end
+
+on:
+  push:
+    paths:
+      - "client/**"
+      - "services/auth/**"
+      - "services/listings/**"
+      - "services/support/**"
+      - "shared/authjwt/**"
+      - "docker-compose.e2e.yml"
+      - ".github/workflows/e2e.yml"
+  pull_request:
+    paths:
+      - "client/**"
+      - "services/auth/**"
+      - "services/listings/**"
+      - "services/support/**"
+      - "shared/authjwt/**"
+      - "docker-compose.e2e.yml"
+      - ".github/workflows/e2e.yml"
+
+jobs:
+  browser:
+    name: browser journeys (full stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: install browser runner
+        run: npm ci
+      - name: install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: start disposable full stack
+        run: docker compose -f docker-compose.e2e.yml up -d --build
+      - name: wait for every application service
+        run: |
+          for endpoint in http://localhost:8080/healthz http://localhost:8081/healthz http://localhost:8082/healthz http://localhost:3000/; do
+            for attempt in $(seq 1 45); do
+              if curl -fsS "$endpoint" > /dev/null; then break; fi
+              if [ "$attempt" = 45 ]; then
+                echo "Timed out waiting for $endpoint"
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+      - name: run browser journeys
+        env:
+          CI: "true"
+          E2E_BASE_URL: http://127.0.0.1:3000
+        run: npm run test:e2e --workspace client
+      - name: save service logs
+        if: failure()
+        run: docker compose -f docker-compose.e2e.yml logs --no-color > e2e-docker.log
+      - name: upload browser and service diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-diagnostics
+          if-no-files-found: ignore
+          path: |
+            client/e2e/playwright-report
+            client/e2e/test-results
+            e2e-docker.log
+      - name: tear down disposable stack
+        if: always()
+        run: docker compose -f docker-compose.e2e.yml down -v --remove-orphans

@@ -7,7 +7,9 @@ RUN go mod download
 RUN CGO_ENABLED=0 go build -o /listings ./cmd/server
 
 FROM alpine:3.20
-RUN adduser -D -u 10001 listings
+RUN adduser -D -u 10001 listings \
+    && mkdir -p /var/lib/hacuba-uploads \
+    && chown listings:listings /var/lib/hacuba-uploads
 USER listings
 COPY --from=build /listings /listings
 EXPOSE 8081
