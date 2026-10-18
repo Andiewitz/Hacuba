@@ -15,5 +15,5 @@ status="$(curl -sS -o /tmp/support-staff.json -w '%{http_code}' "$BASE_URL/staff
 [ "$status" = "403" ] || { cat /tmp/support-staff.json; exit 1; }
 
 metrics="$(curl -fsS "$BASE_URL/metrics")"
-grep -q 'hacuba_support_reports_accepted_total' <<<"$metrics"
+grep -q 'hacuba_support_reports_total' <<<"$metrics"
 echo "support compose smoke passed"

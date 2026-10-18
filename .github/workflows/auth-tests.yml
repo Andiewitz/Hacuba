@@ -49,12 +49,17 @@ jobs:
       - run: go test -race -count=1 ./...
       - name: coverage gate
         run: |
-          go test -count=1 -coverprofile=cover.out ./...
+          # Database adapters and migration commands are exercised by their
+          # own integration jobs. This gate measures the public auth contract.
+          go test -count=1 \
+            -coverpkg "./internal/handlers,./internal/middleware,./internal/server,./internal/tokens" \
+            -coverprofile cover.out \
+            ./internal/handlers ./internal/middleware ./internal/server ./internal/tokens
           go tool cover -func=cover.out | tee cover.txt
           TOTAL=$(go tool cover -func=cover.out | awk '/^total:/ {gsub(/%/,"",$3); print $3}')
           echo "total coverage: $TOTAL%"
-          python3 -c "import sys; sys.exit(0 if float('$TOTAL') >= 60 else 1)" \
-            || (echo "coverage $TOTAL% below 60% gate" && exit 1)
+          python3 -c "import sys; sys.exit(0 if float('$TOTAL') >= 80 else 1)" \
+            || (echo "coverage $TOTAL% below 80% contract gate" && exit 1)
 
   smoke:
     name: compose smoke (live HTTP)
@@ -71,6 +76,7 @@ jobs:
           COOKIE_SECURE: "false"
           PORT: "8080"
         run: |
+          printf 'DB_PASSWORD=smoke-test-pw\nJWT_SECRET=smoke-test-secret-must-be-32-bytes-minimum!!\nCOOKIE_SECURE=false\nPORT=8080\n' > .env
           DSN=$(docker compose config | awk '/DATABASE_URL:/ {print $2}')
           python3 - "$DSN" <<'EOF'
           import sys, urllib.parse
