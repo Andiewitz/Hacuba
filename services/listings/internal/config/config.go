@@ -20,6 +20,7 @@ type Config struct {
 	S3Region             string
 	S3Bucket             string
 	DiscoveryProxySecret []byte
+	SentryDSN            string
 }
 
 func Load() (Config, error) {
@@ -64,5 +65,5 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("DISCOVERY_PROXY_SECRET is required when APP_ENV=production")
 		}
 	}
-	return Config{Port: port, Production: production, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), CacheTTL: 5 * time.Minute, ShutdownTimeout: shutdownTimeout, S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET"), DiscoveryProxySecret: []byte(os.Getenv("DISCOVERY_PROXY_SECRET"))}, nil
+	return Config{Port: port, Production: production, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), CacheTTL: 5 * time.Minute, ShutdownTimeout: shutdownTimeout, S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET"), DiscoveryProxySecret: []byte(os.Getenv("DISCOVERY_PROXY_SECRET")), SentryDSN: os.Getenv("SENTRY_DSN")}, nil
 }

@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/hacuba/support/internal/config"
 	"github.com/hacuba/support/internal/handlers"
@@ -37,7 +38,21 @@ func NewMux(cfg config.Config, store reports.Store, reportMetrics *metrics.Metri
 	mux.HandleFunc("POST /reports", h.CreateReport)
 	mux.HandleFunc("GET /staff/reports", h.ListReports)
 	mux.HandleFunc("PATCH /staff/reports/{id}", h.TransitionReport)
-	return withSecurityHeaders(withRequestLog("support", mux, reportMetrics))
+	return withSecurityHeaders(withRequestLog("support", withPanicRecovery(mux), reportMetrics))
+}
+
+// withPanicRecovery keeps a programming failure from taking down an in-flight
+// request and sends it to Sentry only when SENTRY_DSN has configured a client.
+func withPanicRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				sentry.CurrentHub().Recover(recovered)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 type statusRecorder struct {

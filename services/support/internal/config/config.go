@@ -15,6 +15,7 @@ type Config struct {
 	JWTSecret       []byte
 	ProxySecret     []byte
 	ShutdownTimeout time.Duration
+	SentryDSN       string
 }
 
 func Load() (Config, error) {
@@ -53,5 +54,5 @@ func Load() (Config, error) {
 		}
 		shutdownTimeout = parsed
 	}
-	return Config{Port: port, Production: production, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), ProxySecret: []byte(os.Getenv("SUPPORT_PROXY_SECRET")), ShutdownTimeout: shutdownTimeout}, nil
+	return Config{Port: port, Production: production, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), ProxySecret: []byte(os.Getenv("SUPPORT_PROXY_SECRET")), ShutdownTimeout: shutdownTimeout, SentryDSN: os.Getenv("SENTRY_DSN")}, nil
 }

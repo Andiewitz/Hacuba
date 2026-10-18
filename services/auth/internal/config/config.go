@@ -31,6 +31,7 @@ type Config struct {
 	CookieDomain string
 	CookieSecure bool
 	StaffEmails  map[string]struct{}
+	SentryDSN    string
 }
 
 func getEnv(key, fallback string) string {
@@ -116,6 +117,7 @@ func Load() (Config, error) {
 		CookieDomain:  os.Getenv("COOKIE_DOMAIN"),
 		CookieSecure:  secure,
 		StaffEmails:   staffEmails,
+		SentryDSN:     os.Getenv("SENTRY_DSN"),
 	}, nil
 }
 

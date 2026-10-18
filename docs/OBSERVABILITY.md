@@ -14,3 +14,15 @@ The optional local stack in `observability/` scrapes the three development
 ports and provisions Grafana at `http://localhost:3001`. In production,
 Prometheus must reach each service over Railway private networking; do not
 publish `/metrics` through the client-facing service URL.
+
+## Sentry
+
+Set the server-only `SENTRY_DSN` on the Next workload and any Go service that
+should report exceptions. Set `NEXT_PUBLIC_SENTRY_DSN` only when browser errors
+should go to a browser Sentry project. With either value absent, Sentry remains
+disabled and makes no network requests.
+
+Sentry's default PII collection remains disabled. Before events are sent, the
+Next integration also removes request cookies, headers, and query strings; Go
+service events remove the request entirely. Never put credentials, customer
+data, report text, or listing details in exception messages.

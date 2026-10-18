@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/hacuba/listings/internal/config"
 	"github.com/hacuba/listings/internal/handlers"
@@ -73,7 +74,21 @@ func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.O
 	mux.Handle("POST /listings/{id}/images", writes(http.HandlerFunc(h.RegisterImage)))
 	mux.Handle("DELETE /listings/{id}/images/{imageId}", writes(http.HandlerFunc(h.DeleteImage)))
 	mux.Handle("POST /staff/listings/{id}/moderate", staffWrites(http.HandlerFunc(h.Moderate)))
-	return withRequestLog("listings", mux, observability)
+	return withRequestLog("listings", withPanicRecovery(mux), observability)
+}
+
+// withPanicRecovery keeps a programming failure from taking down an in-flight
+// request and sends it to Sentry only when SENTRY_DSN has configured a client.
+func withPanicRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				sentry.CurrentHub().Recover(recovered)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 type statusRecorder struct {

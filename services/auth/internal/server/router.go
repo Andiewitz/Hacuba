@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/google/uuid"
 	"github.com/hacuba/auth/internal/config"
 	"github.com/hacuba/auth/internal/handlers"
@@ -57,7 +58,21 @@ func NewMux(cfg config.Config, store users.Store) http.Handler {
 		middleware.RequireCSRF(handlers.BecomeSeller(cfg, store)))
 	mux.Handle("POST /auth/become-seller", becomeSeller)
 
-	return withSecurityHeaders(withRequestLog("auth", mux, observability))
+	return withSecurityHeaders(withRequestLog("auth", withPanicRecovery(mux), observability))
+}
+
+// withPanicRecovery keeps a programming failure from taking down an in-flight
+// request and sends it to Sentry only when SENTRY_DSN has configured a client.
+func withPanicRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				sentry.CurrentHub().Recover(recovered)
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 type statusRecorder struct {

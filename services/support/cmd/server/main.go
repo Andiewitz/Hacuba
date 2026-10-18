@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/hacuba/support/internal/config"
 	"github.com/hacuba/support/internal/metrics"
 	"github.com/hacuba/support/internal/reports"
@@ -24,6 +25,10 @@ func main() {
 	if cfg.Production {
 		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	}
+	if err := configureSentry(cfg.SentryDSN, "support", cfg.Production); err != nil {
+		log.Fatalf("support: sentry: %v", err)
+	}
+	defer sentry.Flush(2 * time.Second)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	var store reports.Store
@@ -62,4 +67,25 @@ func main() {
 			log.Printf("support: graceful shutdown: %v", err)
 		}
 	}
+}
+
+func configureSentry(dsn, service string, production bool) error {
+	if dsn == "" {
+		return nil
+	}
+	environment := "development"
+	if production {
+		environment = "production"
+	}
+	return sentry.Init(sentry.ClientOptions{
+		Dsn:              dsn,
+		Environment:      environment,
+		ServerName:       service,
+		AttachStacktrace: true,
+		SendDefaultPII:   false,
+		BeforeSend: func(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
+			event.Request = nil
+			return event
+		},
+	})
 }
