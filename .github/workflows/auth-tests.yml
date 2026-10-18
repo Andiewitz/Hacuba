@@ -57,9 +57,15 @@ jobs:
             ./internal/handlers ./internal/middleware ./internal/server ./internal/tokens
           go tool cover -func=cover.out | tee cover.txt
           TOTAL=$(go tool cover -func=cover.out | awk '/^total:/ {gsub(/%/,"",$NF); print $NF}')
-          echo "total coverage: $TOTAL%"
-          python3 -c "import sys; sys.exit(0 if float('$TOTAL') >= 80 else 1)" \
-            || (echo "coverage $TOTAL% below 80% contract gate" && exit 1)
+          if ! [[ "$TOTAL" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "::error title=Auth coverage gate::Could not parse the coverage total: '$TOTAL'"
+            exit 1
+          fi
+          echo "Auth contract coverage: $TOTAL% (minimum: 80%)" | tee -a "$GITHUB_STEP_SUMMARY"
+          if ! python3 -c "import sys; sys.exit(0 if float('$TOTAL') >= 80 else 1)"; then
+            echo "::error title=Auth coverage gate::Auth contract coverage was $TOTAL%; the required minimum is 80%."
+            exit 1
+          fi
 
   smoke:
     name: compose smoke (live HTTP)

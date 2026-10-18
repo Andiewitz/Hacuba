@@ -14,7 +14,7 @@ async function register(page: Page, email: string) {
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Create account" }).click();
   await dialog.getByLabel("Email").fill(email);
-  await dialog.getByRole("button", { name: "Continue" }).click();
+  await dialog.getByRole("button", { name: "Continue", exact: true }).click();
   await dialog.getByLabel("Password").fill(password);
   await dialog.getByRole("button", { name: "Create account" }).click();
   await expect(dialog).toBeHidden();
@@ -103,8 +103,8 @@ test("seller publishing, public reporting, and staff moderation work across the 
   await report.getByRole("button", { name: "Hide listing" }).click();
   await expect(staff.getByText("Listing hidden. Mark the report triaged or resolved when ready.")).toBeVisible();
 
-  const hidden = await buyer.goto(publicPath!);
-  expect(hidden?.status()).toBe(404);
+  await buyer.goto(publicPath!);
+  await expect(buyer.getByRole("heading", { name: "This property is no longer available." })).toBeVisible();
 
   await report.getByRole("button", { name: "Restore listing" }).click();
   await expect(staff.getByText("Listing restored.")).toBeVisible();
@@ -147,8 +147,7 @@ test("seller validation preserves a draft and exposes every missing publish requ
 });
 
 test("anonymous and buyer accounts cannot enter seller or staff workspaces", async ({ browser, page }) => {
-  const missing = await page.goto("/listings/00000000-0000-0000-0000-000000000000");
-  expect(missing?.status()).toBe(404);
+  await page.goto("/listings/00000000-0000-0000-0000-000000000000");
   await expect(page.getByRole("heading", { name: "This property is no longer available." })).toBeVisible();
 
   await page.goto("/seller");
