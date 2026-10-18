@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 type Config struct {
-	Port          string
-	Production    bool
-	DatabaseURL   string
-	DevSQLitePath string
-	JWTSecret     []byte
-	ProxySecret   []byte
+	Port            string
+	Production      bool
+	DatabaseURL     string
+	DevSQLitePath   string
+	JWTSecret       []byte
+	ProxySecret     []byte
+	ShutdownTimeout time.Duration
 }
 
 func Load() (Config, error) {
@@ -43,5 +45,13 @@ func Load() (Config, error) {
 	if port == "" {
 		port = "8082"
 	}
-	return Config{Port: port, Production: production, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), ProxySecret: []byte(os.Getenv("SUPPORT_PROXY_SECRET"))}, nil
+	shutdownTimeout := 10 * time.Second
+	if value := os.Getenv("SHUTDOWN_TIMEOUT"); value != "" {
+		parsed, err := time.ParseDuration(value)
+		if err != nil || parsed <= 0 {
+			return Config{}, fmt.Errorf("SHUTDOWN_TIMEOUT must be a positive duration")
+		}
+		shutdownTimeout = parsed
+	}
+	return Config{Port: port, Production: production, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), ProxySecret: []byte(os.Getenv("SUPPORT_PROXY_SECRET")), ShutdownTimeout: shutdownTimeout}, nil
 }

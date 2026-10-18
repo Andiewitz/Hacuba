@@ -6,7 +6,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 	"time"
 
 	"github.com/hacuba/listings/internal/config"
@@ -58,7 +60,22 @@ func main() {
 	}
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: server.NewMuxWithObjects(cfg, store, objects), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second}
 	log.Printf("listings: listening on :%s", cfg.Port)
-	log.Fatal(srv.ListenAndServe())
+	serverErr := make(chan error, 1)
+	go func() { serverErr <- srv.ListenAndServe() }()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	select {
+	case err := <-serverErr:
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listings: server error: %v", err)
+		}
+	case <-quit:
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Printf("listings: graceful shutdown: %v", err)
+		}
+	}
 }
 
 // developmentUploadRoot keeps the disk-backed object store behind explicit

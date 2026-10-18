@@ -16,6 +16,7 @@ type Config struct {
 	DevSQLitePath        string
 	JWTSecret            []byte
 	CacheTTL             time.Duration
+	ShutdownTimeout      time.Duration
 	S3Region             string
 	S3Bucket             string
 	DiscoveryProxySecret []byte
@@ -30,6 +31,14 @@ func Load() (Config, error) {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8081"
+	}
+	shutdownTimeout := 10 * time.Second
+	if value := os.Getenv("SHUTDOWN_TIMEOUT"); value != "" {
+		parsed, err := time.ParseDuration(value)
+		if err != nil || parsed <= 0 {
+			return Config{}, fmt.Errorf("SHUTDOWN_TIMEOUT must be a positive duration")
+		}
+		shutdownTimeout = parsed
 	}
 	databaseURL, devSQLitePath := os.Getenv("DATABASE_URL"), os.Getenv("DEV_SQLITE_PATH")
 	if databaseURL != "" && devSQLitePath != "" {
@@ -55,5 +64,5 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("DISCOVERY_PROXY_SECRET is required when APP_ENV=production")
 		}
 	}
-	return Config{Port: port, Production: production, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), CacheTTL: 5 * time.Minute, S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET"), DiscoveryProxySecret: []byte(os.Getenv("DISCOVERY_PROXY_SECRET"))}, nil
+	return Config{Port: port, Production: production, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), CacheTTL: 5 * time.Minute, ShutdownTimeout: shutdownTimeout, S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET"), DiscoveryProxySecret: []byte(os.Getenv("DISCOVERY_PROXY_SECRET"))}, nil
 }

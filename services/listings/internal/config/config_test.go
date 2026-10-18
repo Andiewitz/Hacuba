@@ -39,3 +39,13 @@ func TestLoadProductionRequiresObjectStoreAndProxySecret(t *testing.T) {
 		t.Fatal("Load() succeeded without production image and proxy configuration")
 	}
 }
+
+func TestLoadRejectsInvalidShutdownTimeout(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DEV_SQLITE_PATH", ".dev/listings.db")
+	t.Setenv("SHUTDOWN_TIMEOUT", "not-a-duration")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() succeeded with an invalid SHUTDOWN_TIMEOUT")
+	}
+}

@@ -25,3 +25,13 @@ func TestLoadProductionRequiresProxySecret(t *testing.T) {
 		t.Fatal("Load() succeeded without SUPPORT_PROXY_SECRET in production")
 	}
 }
+
+func TestLoadRejectsInvalidShutdownTimeout(t *testing.T) {
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DEV_SQLITE_PATH", ".dev/support.db")
+	t.Setenv("SHUTDOWN_TIMEOUT", "not-a-duration")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() succeeded with an invalid SHUTDOWN_TIMEOUT")
+	}
+}
