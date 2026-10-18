@@ -1,10 +1,7 @@
 name: listings-tests
 
 on:
-  push:
-    paths: ["services/listings/**", "shared/authjwt/**", ".github/workflows/listings-tests.yml"]
-  pull_request:
-    paths: ["services/listings/**", "shared/authjwt/**"]
+  workflow_call:
 
 jobs:
   unit:

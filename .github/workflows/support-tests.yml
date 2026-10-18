@@ -1,10 +1,7 @@
 name: support-tests
 
 on:
-  push:
-    paths: ["services/support/**", "shared/authjwt/**", ".github/workflows/support-tests.yml"]
-  pull_request:
-    paths: ["services/support/**", "shared/authjwt/**"]
+  workflow_call:
 
 jobs:
   unit:

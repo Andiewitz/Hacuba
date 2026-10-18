@@ -1,0 +1,69 @@
+name: deploy Railway production
+
+on:
+  workflow_run:
+    workflows: [verify]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: railway-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # workflow_run receives secrets, so only deploy a successful main push.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.RAILWAY_PUBLIC_URL }}
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+      RAILWAY_ENVIRONMENT: ${{ vars.RAILWAY_ENVIRONMENT || 'production' }}
+      RAILWAY_PUBLIC_URL: ${{ vars.RAILWAY_PUBLIC_URL }}
+      GATE_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - name: confirm the verified commit is still main
+        run: |
+          git fetch origin main
+          test "$GATE_SHA" = "$(git rev-parse origin/main)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: verify deployment configuration
+        run: |
+          test -n "$RAILWAY_TOKEN" || (echo "Missing production environment secret RAILWAY_TOKEN" && exit 1)
+          test -n "$RAILWAY_PROJECT_ID" || (echo "Missing repository variable RAILWAY_PROJECT_ID" && exit 1)
+      - name: deploy private APIs, then the public client
+        run: |
+          for service in auth listings support client; do
+            npx --yes @railway/cli@5.70.0 up \
+              --project "$RAILWAY_PROJECT_ID" \
+              --environment "$RAILWAY_ENVIRONMENT" \
+              --service "$service" \
+              --ci \
+              --message "GitHub $GATE_SHA"
+          done
+      - name: publish deployment summary
+        run: |
+          {
+            echo "## Railway production deployment"
+            echo
+            echo "- Commit: \`$GATE_SHA\`"
+            echo "- Services: auth, listings, support, client"
+            if [ -n "$RAILWAY_PUBLIC_URL" ]; then
+              echo "- Public URL: $RAILWAY_PUBLIC_URL"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

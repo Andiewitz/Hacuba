@@ -1,15 +1,7 @@
 name: auth-tests
 
 on:
-  push:
-    paths:
-      - "services/auth/**"
-      - "shared/authjwt/**"
-      - ".github/workflows/auth-tests.yml"
-  pull_request:
-    paths:
-      - "services/auth/**"
-      - "shared/authjwt/**"
+  workflow_call:
 
 jobs:
   unit:

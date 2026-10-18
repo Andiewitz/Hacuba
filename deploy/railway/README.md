@@ -30,3 +30,24 @@ Set a five-minute pre-deploy timeout in Railway for the three backend services.
 The runner does not need an application process or persistent volume. Railway
 pre-deploy commands run with service variables and private-network access, and
 their filesystem changes are not retained.
+
+## CI deployment gate
+
+GitHub Actions runs `.github/workflows/verify.yml` for every pull request and
+every push to `main`. It calls the client quality/build checks, all Go service
+tests and smoke contracts, Terraform validation, and the full Compose-backed
+browser journey. Only a successful `main` run can trigger
+`.github/workflows/deploy-railway.yml`.
+
+Before enabling deployments, create a protected GitHub environment named
+`production`. Add its `RAILWAY_TOKEN` secret as a Railway project token scoped
+to the production environment. Add repository variables `RAILWAY_PROJECT_ID`,
+`RAILWAY_ENVIRONMENT` (normally `production`), and the optional
+`RAILWAY_PUBLIC_URL`. Configure GitHub branch protection to require `verify`
+before merging to `main`.
+
+The deployment workflow uploads the verified SHA in order: Auth, Listings,
+Support, then Client. Railway waits for each configured readiness healthcheck;
+if any deployment fails, the workflow stops before the next service. Roll back
+from Railway's deployment history by redeploying the preceding successful
+deployment, then investigate service logs and `/readyz`.

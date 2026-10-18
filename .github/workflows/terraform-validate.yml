@@ -1,10 +1,7 @@
 name: terraform-validate
 
 on:
-  push:
-    paths: ["terraform/**", ".github/workflows/terraform-validate.yml"]
-  pull_request:
-    paths: ["terraform/**", ".github/workflows/terraform-validate.yml"]
+  workflow_call:
 
 permissions:
   contents: read

@@ -1,24 +1,7 @@
 name: end-to-end
 
 on:
-  push:
-    paths:
-      - "client/**"
-      - "services/auth/**"
-      - "services/listings/**"
-      - "services/support/**"
-      - "shared/authjwt/**"
-      - "docker-compose.e2e.yml"
-      - ".github/workflows/e2e.yml"
-  pull_request:
-    paths:
-      - "client/**"
-      - "services/auth/**"
-      - "services/listings/**"
-      - "services/support/**"
-      - "shared/authjwt/**"
-      - "docker-compose.e2e.yml"
-      - ".github/workflows/e2e.yml"
+  workflow_call:
 
 jobs:
   browser:
