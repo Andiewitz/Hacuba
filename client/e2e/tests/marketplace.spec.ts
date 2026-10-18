@@ -12,11 +12,11 @@ async function register(page: Page, email: string) {
   await page.getByRole("menuitem", { name: "Log in / Sign up" }).click();
 
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: "Create account" }).click();
+  await dialog.getByRole("button", { name: "Create account", exact: true }).click();
   await dialog.getByLabel("Email").fill(email);
   await dialog.getByRole("button", { name: "Continue", exact: true }).click();
   await dialog.getByRole("textbox", { name: "Password" }).fill(password);
-  await dialog.getByRole("button", { name: "Create account" }).click();
+  await dialog.getByRole("button", { name: "Create account", exact: true }).last().click();
   await expect(dialog).toBeHidden();
 }
 
