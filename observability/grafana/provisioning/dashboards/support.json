@@ -4,10 +4,12 @@
   "panels": [
     {"type":"stat","title":"Unresolved reports","datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"hacuba_support_reports_open","refId":"A"}],"gridPos":{"h":8,"w":8,"x":0,"y":0}},
     {"type":"timeseries","title":"Reports received by category","datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (category) (increase(hacuba_support_reports_total[24h]))","legendFormat":"{{category}}","refId":"A"}],"gridPos":{"h":8,"w":16,"x":8,"y":0}},
-    {"type":"timeseries","title":"Rejected submissions","datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (reason) (increase(hacuba_support_report_rejections_total[24h]))","legendFormat":"{{reason}}","refId":"A"}],"gridPos":{"h":8,"w":24,"x":0,"y":8}}
+    {"type":"timeseries","title":"Rejected submissions","datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (reason) (increase(hacuba_support_report_rejections_total[24h]))","legendFormat":"{{reason}}","refId":"A"}],"gridPos":{"h":8,"w":24,"x":0,"y":8}},
+    {"type":"timeseries","title":"Request rate by service","datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"sum by (service) (rate(hacuba_http_requests_total[5m]))","legendFormat":"{{service}}","refId":"A"}],"gridPos":{"h":8,"w":12,"x":0,"y":16}},
+    {"type":"timeseries","title":"95th percentile request latency","datasource":{"type":"prometheus","uid":"prometheus"},"targets":[{"expr":"histogram_quantile(0.95, sum by (le, service) (rate(hacuba_http_request_duration_seconds_bucket[5m])))","legendFormat":"{{service}}","refId":"A"}],"gridPos":{"h":8,"w":12,"x":12,"y":16}}
   ],
   "schemaVersion": 41,
-  "title": "Support operations",
-  "uid": "hacuba-support",
-  "version": 1
+  "title": "Hacuba operations",
+  "uid": "hacuba-operations",
+  "version": 2
 }

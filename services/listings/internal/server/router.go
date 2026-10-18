@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,7 +12,9 @@ import (
 	"github.com/hacuba/listings/internal/handlers"
 	"github.com/hacuba/listings/internal/images"
 	"github.com/hacuba/listings/internal/listings"
+	"github.com/hacuba/listings/internal/metrics"
 	"github.com/hacuba/listings/internal/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func NewMux(cfg config.Config, store listings.Store) http.Handler {
@@ -21,12 +24,14 @@ func NewMux(cfg config.Config, store listings.Store) http.Handler {
 // NewMuxWithObjects injects S3 only in deployments that configure it; tests
 // and local API work can still exercise every non-image route without AWS.
 func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.ObjectStore) http.Handler {
+	observability := metrics.New()
 	h := handlers.Handler{Store: store, Objects: objects, DiscoveryProxySecret: cfg.DiscoveryProxySecret}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"ok","service":"listings"}`))
 	})
+	mux.Handle("GET /metrics", promhttp.HandlerFor(observability.Registry, promhttp.HandlerOpts{}))
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
@@ -68,7 +73,7 @@ func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.O
 	mux.Handle("POST /listings/{id}/images", writes(http.HandlerFunc(h.RegisterImage)))
 	mux.Handle("DELETE /listings/{id}/images/{imageId}", writes(http.HandlerFunc(h.DeleteImage)))
 	mux.Handle("POST /staff/listings/{id}/moderate", staffWrites(http.HandlerFunc(h.Moderate)))
-	return withRequestLog("listings", mux)
+	return withRequestLog("listings", mux, observability)
 }
 
 type statusRecorder struct {
@@ -87,7 +92,7 @@ func (w *statusRecorder) Write(body []byte) (int, error) {
 	return w.ResponseWriter.Write(body)
 }
 
-func withRequestLog(service string, next http.Handler) http.Handler {
+func withRequestLog(service string, next http.Handler, metrics *metrics.Metrics) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestID := uuid.NewString()
 		w.Header().Set("X-Request-ID", requestID)
@@ -102,5 +107,7 @@ func withRequestLog(service string, next http.Handler) http.Handler {
 			route = "unmatched"
 		}
 		slog.Info("http request", "service", service, "request_id", requestID, "method", r.Method, "route", route, "status", recorder.status, "latency_ms", time.Since(started).Milliseconds())
+		metrics.HTTPRequests.WithLabelValues(service, route, r.Method, strconv.Itoa(recorder.status)).Inc()
+		metrics.HTTPLatency.WithLabelValues(service, route, r.Method).Observe(time.Since(started).Seconds())
 	})
 }

@@ -12,6 +12,8 @@ The service exposes `GET /metrics` for an internal Prometheus scraper:
 - `hacuba_support_reports_total{category}`
 - `hacuba_support_reports_open` (the current unresolved-report count, including triaged reports)
 - `hacuba_support_report_rejections_total{reason}`
+- `hacuba_http_requests_total{service,route,method,status}`
+- `hacuba_http_request_duration_seconds{service,route,method}`
 
 Labels are bounded categories and rejection reasons only. Do not add report
 IDs, listing references, emails, user IDs, descriptions, or IPs as labels.
@@ -27,8 +29,9 @@ proxied users as one client.
 
 To view aggregate metrics, start the optional observability stack from
 `observability/` and open Grafana at `http://localhost:3001` (local user:
-`hacuba`; password: `hacuba-local-only`). It scrapes the local Support service
-at port 8082. The dashboard intentionally cannot display report contents.
+`hacuba`; password: `hacuba-local-only`). It scrapes the local Auth, Listings,
+and Support services at ports 8080, 8081, and 8082. The dashboard intentionally
+cannot display report contents.
 
 Production uses a separate private Support PostgreSQL database and an
 internal Prometheus scrape route. Configure the database DSN and `JWT_SECRET`

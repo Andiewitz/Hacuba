@@ -4,19 +4,23 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/hacuba/auth/internal/config"
 	"github.com/hacuba/auth/internal/handlers"
+	"github.com/hacuba/auth/internal/metrics"
 	"github.com/hacuba/auth/internal/middleware"
 	"github.com/hacuba/auth/internal/users"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // NewMux builds the full auth HTTP router. cmd/server and all
 // router-level tests share this constructor so contract tests can never
 // drift from production wiring.
 func NewMux(cfg config.Config, store users.Store) http.Handler {
+	observability := metrics.New()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -33,6 +37,7 @@ func NewMux(cfg config.Config, store users.Store) http.Handler {
 		}
 		_, _ = w.Write([]byte(`{"status":"ok","service":"auth"}`))
 	})
+	mux.Handle("GET /metrics", promhttp.HandlerFor(observability.Registry, promhttp.HandlerOpts{}))
 
 	// Public: no session exists yet, so CSRF binding is impossible.
 	mux.Handle("POST /auth/register", handlers.Register(cfg, store))
@@ -52,7 +57,7 @@ func NewMux(cfg config.Config, store users.Store) http.Handler {
 		middleware.RequireCSRF(handlers.BecomeSeller(cfg, store)))
 	mux.Handle("POST /auth/become-seller", becomeSeller)
 
-	return withSecurityHeaders(withRequestLog("auth", mux))
+	return withSecurityHeaders(withRequestLog("auth", mux, observability))
 }
 
 type statusRecorder struct {
@@ -72,7 +77,7 @@ func (w *statusRecorder) Write(body []byte) (int, error) {
 	return w.ResponseWriter.Write(body)
 }
 
-func withRequestLog(service string, next http.Handler) http.Handler {
+func withRequestLog(service string, next http.Handler, metrics *metrics.Metrics) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestID := uuid.NewString()
 		w.Header().Set("X-Request-ID", requestID)
@@ -87,6 +92,8 @@ func withRequestLog(service string, next http.Handler) http.Handler {
 			route = "unmatched"
 		}
 		slog.Info("http request", "service", service, "request_id", requestID, "method", r.Method, "route", route, "status", recorder.status, "latency_ms", time.Since(started).Milliseconds())
+		metrics.HTTPRequests.WithLabelValues(service, route, r.Method, strconv.Itoa(recorder.status)).Inc()
+		metrics.HTTPLatency.WithLabelValues(service, route, r.Method).Observe(time.Since(started).Seconds())
 	})
 }
 
