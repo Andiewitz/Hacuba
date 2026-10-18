@@ -16,6 +16,8 @@ import (
 
 const MaxBytes int64 = 10 << 20
 
+const requestTimeout = 5 * time.Second
+
 var allowed = map[string]string{"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 
 type ObjectStore interface {
@@ -50,6 +52,8 @@ func NewS3Store(ctx context.Context, region, bucket string) (*S3Store, error) {
 	return &S3Store{bucket: bucket, client: client, presign: s3.NewPresignClient(client)}, nil
 }
 func (s *S3Store) PresignPut(ctx context.Context, key, contentType string, size int64) (UploadTarget, error) {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
 	req, err := s.presign.PresignPutObject(ctx, &s3.PutObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key), ContentType: aws.String(contentType), ContentLength: aws.Int64(size), Tagging: aws.String("state=unregistered")}, s3.WithPresignExpires(5*time.Minute))
 	if err != nil {
 		return UploadTarget{}, err
@@ -57,11 +61,15 @@ func (s *S3Store) PresignPut(ctx context.Context, key, contentType string, size 
 	return UploadTarget{URL: req.URL, Headers: map[string]string{"x-amz-tagging": "state=unregistered"}}, nil
 }
 func (s *S3Store) Head(ctx context.Context, key string) error {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
 	_, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{Bucket: aws.String(s.bucket), Key: aws.String(key)})
 	return err
 }
 
 func (s *S3Store) MarkRegistered(ctx context.Context, key string) error {
+	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
 	_, err := s.client.PutObjectTagging(ctx, &s3.PutObjectTaggingInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),

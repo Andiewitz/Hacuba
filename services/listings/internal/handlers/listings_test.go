@@ -23,11 +23,65 @@ import (
 type testObjectStore struct {
 	lastKey          string
 	markedRegistered bool
+	presignErr       error
 }
 
 func (s *testObjectStore) PresignPut(_ context.Context, key, _ string, _ int64) (images.UploadTarget, error) {
+	if s.presignErr != nil {
+		return images.UploadTarget{}, s.presignErr
+	}
 	s.lastKey = key
 	return images.UploadTarget{URL: "https://uploads.example.test/" + key, Headers: map[string]string{"x-amz-tagging": "state=unregistered"}}, nil
+}
+
+func TestImagePresignRateLimitAndStorageFailure(t *testing.T) {
+	secret := []byte("listings-test-secret-must-be-32-bytes!!")
+	store, objects := listings.NewMemoryStore(), &testObjectStore{}
+	mux := server.NewMuxWithObjects(config.Config{JWTSecret: secret}, store, objects)
+	owner := uuid.Must(uuid.NewV7())
+	token, csrf := sellerToken(t, secret, owner)
+	request := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/listings", strings.NewReader(`{}`))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-CSRF-Token", csrf)
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: "csrf_token", Value: csrf})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+	created := request()
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create draft = %d: %s", created.Code, created.Body.String())
+	}
+	var draft listings.Listing
+	if err := json.NewDecoder(created.Body).Decode(&draft); err != nil {
+		t.Fatal(err)
+	}
+	presign := func() *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/listings/"+draft.ID.String()+"/images/presign", strings.NewReader(`{"content_type":"image/jpeg","byte_size":3}`))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("X-CSRF-Token", csrf)
+		req.Header.Set("Content-Type", "application/json")
+		req.AddCookie(&http.Cookie{Name: "csrf_token", Value: csrf})
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		return rec
+	}
+	objects.presignErr = errors.New("object store down")
+	if failed := presign(); failed.Code != http.StatusInternalServerError || strings.Contains(failed.Body.String(), "object store") {
+		t.Fatalf("storage failure = %d: %s", failed.Code, failed.Body.String())
+	}
+	objects.presignErr = nil
+	for attempt := 0; attempt < 29; attempt++ {
+		if rec := presign(); rec.Code != http.StatusOK {
+			t.Fatalf("presign %d = %d: %s", attempt+1, rec.Code, rec.Body.String())
+		}
+	}
+	limited := presign()
+	if limited.Code != http.StatusTooManyRequests || limited.Header().Get("Retry-After") != "60" {
+		t.Fatalf("rate limit = %d retry=%q: %s", limited.Code, limited.Header().Get("Retry-After"), limited.Body.String())
+	}
 }
 
 func (s *testObjectStore) Head(_ context.Context, key string) error {
@@ -324,7 +378,7 @@ func TestDiscoveryEventsRateLimit(t *testing.T) {
 	req.RemoteAddr = "198.51.100.42:41234"
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
-	if rec.Code != http.StatusTooManyRequests {
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") != "60" {
 		t.Fatalf("request over the per-minute limit = %d: %s", rec.Code, rec.Body.String())
 	}
 }

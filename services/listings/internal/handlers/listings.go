@@ -48,6 +48,11 @@ var discoveryRateLimiter = struct {
 	windows map[string]discoveryRateWindow
 }{windows: map[string]discoveryRateWindow{}}
 
+var uploadRateLimiter = struct {
+	sync.Mutex
+	windows map[string]discoveryRateWindow
+}{windows: map[string]discoveryRateWindow{}}
+
 func allowDiscoveryRequest(remote string) bool {
 	host, _, err := net.SplitHostPort(remote)
 	if err != nil {
@@ -69,10 +74,31 @@ func allowDiscoveryRequest(remote string) bool {
 	return true
 }
 
+// allowImageUpload limits expensive object-store control-plane work by seller
+// identity. It deliberately does not use the client proxy's source address,
+// which would otherwise make unrelated sellers share one quota.
+func allowImageUpload(sellerID string) bool {
+	now := time.Now()
+	uploadRateLimiter.Lock()
+	defer uploadRateLimiter.Unlock()
+	window := uploadRateLimiter.windows[sellerID]
+	if window.started.IsZero() || now.Sub(window.started) >= time.Minute {
+		window = discoveryRateWindow{started: now}
+	}
+	if window.requests >= 30 {
+		uploadRateLimiter.windows[sellerID] = window
+		return false
+	}
+	window.requests++
+	uploadRateLimiter.windows[sellerID] = window
+	return true
+}
+
 // RecordDiscoveryEvents accepts a bounded client batch. Viewer IDs are
 // rotating UUIDs; the service intentionally does not persist IP addresses.
 func (h Handler) RecordDiscoveryEvents(w http.ResponseWriter, r *http.Request) {
 	if !allowDiscoveryRequest(r.RemoteAddr) {
+		w.Header().Set("Retry-After", "60")
 		writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "too many discovery events"})
 		return
 	}
@@ -125,6 +151,11 @@ func discoveryEventType(value string) bool {
 func (h Handler) PresignImage(w http.ResponseWriter, r *http.Request) {
 	l, ok := h.ownerListing(w, r)
 	if !ok {
+		return
+	}
+	if !allowImageUpload(l.OwnerID.String()) {
+		w.Header().Set("Retry-After", "60")
+		writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "too many image upload requests; try again in a minute"})
 		return
 	}
 	if h.Objects == nil {

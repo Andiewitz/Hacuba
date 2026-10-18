@@ -123,7 +123,7 @@ func TestCreateReportValidatesAndRateLimits(t *testing.T) {
 	req.RemoteAddr = "198.51.100.11:4000"
 	rec := httptest.NewRecorder()
 	handler.CreateReport(rec, req)
-	if rec.Code != http.StatusTooManyRequests {
+	if rec.Code != http.StatusTooManyRequests || rec.Header().Get("Retry-After") != "60" {
 		t.Fatalf("rate limited report = %d: %s", rec.Code, rec.Body.String())
 	}
 }

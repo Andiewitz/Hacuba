@@ -39,6 +39,7 @@ func New(store reports.Store, reportMetrics *metrics.Metrics, jwtKey, proxyKey [
 func (h *Handler) CreateReport(w http.ResponseWriter, r *http.Request) {
 	if !h.allow(h.clientAddress(r)) {
 		h.Metrics.ReportsRejected.WithLabelValues("rate_limited").Inc()
+		w.Header().Set("Retry-After", "60")
 		writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "too many reports; try again in a minute"})
 		return
 	}
