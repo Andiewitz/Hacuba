@@ -1,4 +1,4 @@
-const authServiceURL = process.env.AUTH_API_URL ?? "http://localhost:8080";
+import { serviceURL } from "@/lib/server-config";
 
 const forwardedRequestHeaders = [
   "authorization",
@@ -15,6 +15,12 @@ function backendUnavailable() {
 }
 
 export async function proxyAuthRequest(request: Request, path: string) {
+	let authServiceURL: string;
+	try {
+		authServiceURL = serviceURL("AUTH_API_URL", "http://localhost:8080");
+	} catch {
+		return backendUnavailable();
+	}
   const headers = new Headers();
   for (const name of forwardedRequestHeaders) {
     const value = request.headers.get(name);

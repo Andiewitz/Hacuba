@@ -1,7 +1,14 @@
-const supportServiceURL = process.env.SUPPORT_API_URL ?? "http://localhost:8082";
-const supportProxySecret = process.env.SUPPORT_PROXY_SECRET;
+import { optionalServerValue, serviceURL } from "@/lib/server-config";
 
 export async function proxySupportRequest(request: Request, path: string) {
+	let supportServiceURL: string;
+	let supportProxySecret: string | undefined;
+	try {
+		supportServiceURL = serviceURL("SUPPORT_API_URL", "http://localhost:8082");
+		supportProxySecret = optionalServerValue("SUPPORT_PROXY_SECRET");
+	} catch {
+		return Response.json({ error: "Support is temporarily unavailable. Please try again." }, { status: 503 });
+	}
   const headers = new Headers();
   for (const name of ["authorization", "content-type"] as const) {
     const value = request.headers.get(name);

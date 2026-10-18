@@ -45,6 +45,7 @@ type Action struct {
 }
 
 type Store interface {
+	Ping(context.Context) error
 	Create(context.Context, Report) (*Report, error)
 	OpenCount(context.Context) (int, error)
 	List(context.Context, int) ([]Report, error)

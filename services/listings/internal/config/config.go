@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -10,6 +11,7 @@ import (
 // receives auth-db credentials; JWT verification uses the shared secret.
 type Config struct {
 	Port                 string
+	Production           bool
 	DatabaseURL          string
 	DevSQLitePath        string
 	JWTSecret            []byte
@@ -20,6 +22,7 @@ type Config struct {
 }
 
 func Load() (Config, error) {
+	production := strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
 	secret := os.Getenv("JWT_SECRET")
 	if len(secret) < 32 {
 		return Config{}, fmt.Errorf("JWT_SECRET must be at least 32 bytes")
@@ -35,5 +38,22 @@ func Load() (Config, error) {
 	if databaseURL == "" && devSQLitePath == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required unless DEV_SQLITE_PATH is explicitly set for development")
 	}
-	return Config{Port: port, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), CacheTTL: 5 * time.Minute, S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET"), DiscoveryProxySecret: []byte(os.Getenv("DISCOVERY_PROXY_SECRET"))}, nil
+	if production {
+		if databaseURL == "" {
+			return Config{}, fmt.Errorf("DATABASE_URL is required when APP_ENV=production")
+		}
+		if devSQLitePath != "" {
+			return Config{}, fmt.Errorf("DEV_SQLITE_PATH cannot be set when APP_ENV=production")
+		}
+		if os.Getenv("DEV_UPLOAD_PATH") != "" {
+			return Config{}, fmt.Errorf("DEV_UPLOAD_PATH cannot be set when APP_ENV=production")
+		}
+		if os.Getenv("S3_REGION") == "" || os.Getenv("S3_BUCKET") == "" {
+			return Config{}, fmt.Errorf("S3_REGION and S3_BUCKET are required when APP_ENV=production")
+		}
+		if os.Getenv("DISCOVERY_PROXY_SECRET") == "" {
+			return Config{}, fmt.Errorf("DISCOVERY_PROXY_SECRET is required when APP_ENV=production")
+		}
+	}
+	return Config{Port: port, Production: production, DatabaseURL: databaseURL, DevSQLitePath: devSQLitePath, JWTSecret: []byte(secret), CacheTTL: 5 * time.Minute, S3Region: os.Getenv("S3_REGION"), S3Bucket: os.Getenv("S3_BUCKET"), DiscoveryProxySecret: []byte(os.Getenv("DISCOVERY_PROXY_SECRET"))}, nil
 }

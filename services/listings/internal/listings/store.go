@@ -12,6 +12,7 @@ var ErrNotFound = errors.New("not found")
 // Store owns listings-db only. Every owner operation takes ownerID from a
 // verified JWT context, never from an HTTP body or path value.
 type Store interface {
+	Ping(context.Context) error
 	Create(context.Context, Listing) (*Listing, error)
 	GetPublished(context.Context, uuid.UUID) (*Listing, error)
 	GetOwner(context.Context, uuid.UUID, uuid.UUID) (*Listing, error)

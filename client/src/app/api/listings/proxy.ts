@@ -1,4 +1,4 @@
-const listingsServiceURL = process.env.LISTINGS_API_URL ?? "http://localhost:8081";
+import { serviceURL } from "@/lib/server-config";
 
 const forwardedRequestHeaders = [
   "authorization",
@@ -8,6 +8,15 @@ const forwardedRequestHeaders = [
 ] as const;
 
 export async function proxyListingsRequest(request: Request, path: string) {
+	let listingsServiceURL: string;
+	try {
+		listingsServiceURL = serviceURL("LISTINGS_API_URL", "http://localhost:8081");
+	} catch {
+		return Response.json(
+			{ error: "Listings are temporarily unavailable. Please try again." },
+			{ status: 503 },
+		);
+	}
   const headers = new Headers();
   for (const name of forwardedRequestHeaders) {
     const value = request.headers.get(name);

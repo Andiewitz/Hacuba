@@ -33,6 +33,8 @@ func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 }
 func (s *PostgresStore) Close() { s.pool.Close() }
 
+func (s *PostgresStore) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
+
 const listingColumns = `id, owner_id, listing_mode, property_type, title, description, price_centavos, currency, price_period, city, barangay, address_line, lat, lng, bedrooms, bathrooms, floor_area_sqm, lot_area_sqm, details, seller_name, contact_phone, contact_email, status, published_at, created_at, updated_at`
 const listingJSON = `owner_id, row_to_json(listings)`
 

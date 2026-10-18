@@ -126,8 +126,16 @@ function fixtureListings(filters: ListingFilters) {
   return catalogue.filter((listing) => matchesFilters(listing, filters));
 }
 
+function listingsAPIURL() {
+  const value = process.env.LISTINGS_API_URL?.replace(/\/$/, "");
+  if (!value && isProduction) {
+    throw new Error("LISTINGS_API_URL is required when APP_ENV=production");
+  }
+  return value;
+}
+
 export async function getPublicListings(filters: ListingFilters = {}) {
-  const apiUrl = process.env.LISTINGS_API_URL;
+  const apiUrl = listingsAPIURL();
   if (!apiUrl) return fixtureListings(filters);
 
   const query = new URLSearchParams();
@@ -150,7 +158,7 @@ export async function getPublicListings(filters: ListingFilters = {}) {
 }
 
 export async function getDiscovery(filters: ListingFilters = {}, viewerID?: string): Promise<DiscoverySection[]> {
-  const apiUrl = process.env.LISTINGS_API_URL;
+  const apiUrl = listingsAPIURL();
   if (!apiUrl) return [{ id: "new", title: "Newly listed", reason: "Fresh properties added to Hacuba.", listings: fixtureListings(filters) }];
   const query = new URLSearchParams();
   if (filters.city) query.set("city", filters.city);
@@ -172,7 +180,7 @@ export async function getDiscovery(filters: ListingFilters = {}, viewerID?: stri
 }
 
 export async function getPublicListing(id: string) {
-  const apiUrl = process.env.LISTINGS_API_URL;
+  const apiUrl = listingsAPIURL();
   if (!apiUrl) {
     const listing = catalogue.find((item) => item.id === id);
     return listing ? fixtureDetail(listing) : null;
@@ -193,7 +201,7 @@ export async function getPublicListing(id: string) {
 }
 
 export async function getRelatedListings(id: string) {
-  const apiUrl = process.env.LISTINGS_API_URL;
+  const apiUrl = listingsAPIURL();
   if (!apiUrl) return catalogue.filter((listing) => listing.id !== id).slice(0, 4);
   try {
     const response = await fetch(`${apiUrl.replace(/\/$/, "")}/listings/${encodeURIComponent(id)}/related`, { cache: "no-store" });
@@ -202,3 +210,4 @@ export async function getRelatedListings(id: string) {
     return data.listings.map(toCard);
   } catch { return []; }
 }
+import { isProduction } from "@/lib/server-config";

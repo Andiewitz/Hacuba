@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/hacuba/listings/internal/config"
 	"github.com/hacuba/listings/internal/handlers"
@@ -21,6 +23,17 @@ func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.O
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"ok","service":"listings"}`))
+	})
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		w.Header().Set("Content-Type", "application/json")
+		if err := store.Ping(ctx); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"status":"unavailable","service":"listings"}`))
+			return
+		}
 		_, _ = w.Write([]byte(`{"status":"ok","service":"listings"}`))
 	})
 	mux.HandleFunc("GET /listings", h.ListPublic)

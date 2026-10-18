@@ -25,3 +25,17 @@ func TestLoadAllowsExplicitDevelopmentSQLite(t *testing.T) {
 		t.Fatalf("unexpected config: %#v", cfg)
 	}
 }
+
+func TestLoadProductionRequiresObjectStoreAndProxySecret(t *testing.T) {
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("JWT_SECRET", testJWTSecret)
+	t.Setenv("DATABASE_URL", "postgres://example")
+	t.Setenv("DEV_SQLITE_PATH", "")
+	t.Setenv("DEV_UPLOAD_PATH", "")
+	t.Setenv("S3_REGION", "")
+	t.Setenv("S3_BUCKET", "")
+	t.Setenv("DISCOVERY_PROXY_SECRET", "")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() succeeded without production image and proxy configuration")
+	}
+}

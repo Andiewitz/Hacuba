@@ -46,6 +46,8 @@ func (s *MemoryStore) Transition(_ context.Context, id, actorID uuid.UUID, statu
 
 func NewMemoryStore() *MemoryStore { return &MemoryStore{} }
 
+func (s *MemoryStore) Ping(_ context.Context) error { return nil }
+
 func (s *MemoryStore) Create(_ context.Context, report Report) (*Report, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

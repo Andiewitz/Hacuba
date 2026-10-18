@@ -1,6 +1,7 @@
-const listingsServiceURL = process.env.LISTINGS_API_URL ?? "http://localhost:8081";
+import { serviceURL } from "@/lib/server-config";
 
 async function proxyUpload(request: Request, context: RouteContext<"/api/dev-uploads/[...path]">) {
+	const listingsServiceURL = serviceURL("LISTINGS_API_URL", "http://localhost:8081");
   const { path } = await context.params;
   const target = `${listingsServiceURL}/dev-uploads/${path.map(encodeURIComponent).join("/")}`;
   const headers = new Headers();

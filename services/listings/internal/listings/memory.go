@@ -25,6 +25,8 @@ func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{listings: map[uuid.UUID]Listing{}, images: map[uuid.UUID]map[uuid.UUID]Image{}}
 }
 
+func (m *MemoryStore) Ping(_ context.Context) error { return nil }
+
 func (m *MemoryStore) Create(_ context.Context, l Listing) (*Listing, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

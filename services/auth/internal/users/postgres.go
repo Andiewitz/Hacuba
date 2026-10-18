@@ -40,6 +40,8 @@ func (s *PostgresStore) Close() {
 	s.pool.Close()
 }
 
+func (s *PostgresStore) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
+
 func (s *PostgresStore) CreateUser(ctx context.Context, user User) (*User, error) {
 	row := s.pool.QueryRow(ctx,
 		`INSERT INTO users (id, email, password_hash, role) VALUES ($1, $2, $3, $4)

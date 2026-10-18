@@ -35,6 +35,7 @@ type RefreshSession struct {
 // (never from client input). Future resource stores must follow the same
 // pattern: WHERE owner_id = $1 with the authenticated UUID.
 type Store interface {
+	Ping(context.Context) error
 	CreateUser(ctx context.Context, user User) (*User, error)
 	GetUserByEmail(ctx context.Context, email string) (*User, error)
 	// GetUserByID returns only the user matching id — the caller passes

@@ -88,6 +88,8 @@ func NewSQLiteStore(ctx context.Context, path string) (*SQLiteStore, error) {
 
 func (s *SQLiteStore) Close() error { return s.db.Close() }
 
+func (s *SQLiteStore) Ping(ctx context.Context) error { return s.db.PingContext(ctx) }
+
 func (s *SQLiteStore) Create(ctx context.Context, report Report) (*Report, error) {
 	report.CreatedAt = time.Now().UTC()
 	var reporter any

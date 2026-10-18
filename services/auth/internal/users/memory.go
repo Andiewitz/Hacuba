@@ -25,6 +25,8 @@ func NewMemoryStore() *MemoryStore {
 	}
 }
 
+func (m *MemoryStore) Ping(_ context.Context) error { return nil }
+
 func (m *MemoryStore) CreateUser(_ context.Context, user User) (*User, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -26,6 +26,8 @@ func NewPostgresStore(ctx context.Context, dsn string) (*PostgresStore, error) {
 
 func (s *PostgresStore) Close() { s.pool.Close() }
 
+func (s *PostgresStore) Ping(ctx context.Context) error { return s.pool.Ping(ctx) }
+
 func (s *PostgresStore) Create(ctx context.Context, report Report) (*Report, error) {
 	err := s.pool.QueryRow(ctx, `INSERT INTO support_reports (id,reporter_id,category,reason,listing_reference,listing_id,contact_email,description,status)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)

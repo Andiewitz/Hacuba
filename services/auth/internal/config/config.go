@@ -11,7 +11,8 @@ import (
 // Config holds all runtime configuration for the auth service.
 // All secrets come from the environment — never hardcode them.
 type Config struct {
-	Port string
+	Port       string
+	Production bool
 
 	// DatabaseURL is the Postgres DSN. Only the auth service
 	// ever uses this value — the auth-db container lives on an
@@ -41,8 +42,12 @@ func getEnv(key, fallback string) string {
 
 // Load reads configuration from the environment with safe defaults.
 func Load() (Config, error) {
+	production := strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
+		if production {
+			return Config{}, fmt.Errorf("JWT_SECRET is required when APP_ENV=production")
+		}
 		// Dev-only fallback so `go build` / `go test` work without env.
 		// main.go refuses to start without a real secret (see EnsureProdReady).
 		secret = "dev-only-secret-change-me-32-bytes-minimum!!"
@@ -82,6 +87,17 @@ func Load() (Config, error) {
 	if databaseURL != "" && devSQLitePath != "" {
 		return Config{}, fmt.Errorf("DATABASE_URL and DEV_SQLITE_PATH cannot both be set")
 	}
+	if production {
+		if databaseURL == "" {
+			return Config{}, fmt.Errorf("DATABASE_URL is required when APP_ENV=production")
+		}
+		if devSQLitePath != "" {
+			return Config{}, fmt.Errorf("DEV_SQLITE_PATH cannot be set when APP_ENV=production")
+		}
+		if !secure {
+			return Config{}, fmt.Errorf("COOKIE_SECURE must be true when APP_ENV=production")
+		}
+	}
 
 	staffEmails := map[string]struct{}{}
 	for _, email := range strings.Split(os.Getenv("STAFF_EMAILS"), ",") {
@@ -91,6 +107,7 @@ func Load() (Config, error) {
 	}
 	return Config{
 		Port:          getEnv("PORT", "8080"),
+		Production:    production,
 		DatabaseURL:   databaseURL,
 		DevSQLitePath: devSQLitePath,
 		JWTSecret:     []byte(secret),
@@ -109,6 +126,9 @@ func (c Config) IsStaffEmail(email string) bool {
 
 // EnsureProdReady fails fast when required prod settings are missing.
 func (c Config) EnsureProdReady() error {
+	if !c.Production {
+		return nil
+	}
 	if c.DatabaseURL == "" {
 		return fmt.Errorf("DATABASE_URL is required")
 	}

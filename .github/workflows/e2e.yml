@@ -39,7 +39,7 @@ jobs:
         run: docker compose -f docker-compose.e2e.yml up -d --build
       - name: wait for every application service
         run: |
-          for endpoint in http://localhost:8080/healthz http://localhost:8081/healthz http://localhost:8082/healthz http://localhost:3000/; do
+          for endpoint in http://localhost:8080/readyz http://localhost:8081/readyz http://localhost:8082/readyz http://localhost:3000/api/health; do
             for attempt in $(seq 1 45); do
               if curl -fsS "$endpoint" > /dev/null; then break; fi
               if [ "$attempt" = 45 ]; then
