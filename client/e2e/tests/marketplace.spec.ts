@@ -20,6 +20,11 @@ async function register(page: Page, email: string) {
   await expect(dialog).toBeHidden();
 }
 
+async function activateSeller(page: Page) {
+  await page.getByRole("link", { name: "Become a seller" }).click();
+  await expect(page).toHaveURL(/\/seller$/);
+}
+
 test("seller publishing, public reporting, and staff moderation work across the full stack", async ({ browser }) => {
   const sellerContext = await browser.newContext();
   const seller = await sellerContext.newPage();
@@ -27,8 +32,7 @@ test("seller publishing, public reporting, and staff moderation work across the 
   const title = `E2E Cebu condo ${Date.now()}`;
 
   await register(seller, sellerEmail);
-  await seller.getByRole("link", { name: "Become a seller" }).click();
-  await expect(seller).toHaveURL(/\/seller$/);
+  await activateSeller(seller);
 
   await seller.getByLabel("Property type").selectOption("Condo");
   await seller.getByLabel("Listing title").fill(title);
@@ -63,6 +67,17 @@ test("seller publishing, public reporting, and staff moderation work across the 
 
   const buyerContext = await browser.newContext();
   const buyer = await buyerContext.newPage();
+  await buyer.goto("/");
+  await buyer.getByRole("button", { name: /Where/ }).click();
+  await buyer.getByRole("button", { name: "Cebu City, Philippines" }).click();
+  await buyer.getByRole("button", { name: /Price/ }).click();
+  await buyer.getByRole("button", { name: "₱3M – ₱6M" }).click();
+  await buyer.getByRole("button", { name: /Property Type/ }).click();
+  await buyer.getByRole("button", { name: "Condo" }).click();
+  await buyer.getByRole("button", { name: "Search properties" }).click();
+  await expect(buyer).toHaveURL(/city=Cebu\+City.*type=condo.*max_price=600000000/);
+  await expect(buyer.locator(`a[href="${publicPath}"]`)).toBeVisible();
+
   await buyer.goto(publicPath!);
   await expect(buyer.getByRole("heading", { name: title })).toBeVisible();
   await expect(buyer.getByText("1 / 2")).toBeVisible();
@@ -103,4 +118,52 @@ test("seller publishing, public reporting, and staff moderation work across the 
   await expect(seller.getByRole("alert")).toContainText("Log in and activate seller access");
 
   await Promise.all([sellerContext.close(), buyerContext.close(), staffContext.close()]);
+});
+
+test("seller validation preserves a draft and exposes every missing publish requirement", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  await register(page, uniqueEmail("validation"));
+  await activateSeller(page);
+
+  await page.getByLabel("Listing title").fill("bad");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByRole("alert")).toContainText("must be 5 to 120 characters");
+
+  await page.getByLabel("Listing title").fill("Draft that remains private");
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByText("Your draft is saved to your Hacuba seller account.")).toBeVisible();
+  await page.getByRole("button", { name: "Publish listing" }).click();
+  const validation = page.getByRole("alert");
+  await expect(validation).toContainText("Finish these items before publishing");
+  await expect(validation).toContainText("at least one image is required");
+  await expect(validation).toContainText("missing");
+
+  await page.getByRole("link", { name: "My listings" }).click();
+  await expect(page.getByText("Drafts (1)")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Draft that remains private" })).toBeVisible();
+  await context.close();
+});
+
+test("anonymous and buyer accounts cannot enter seller or staff workspaces", async ({ browser, page }) => {
+  const missing = await page.goto("/listings/00000000-0000-0000-0000-000000000000");
+  expect(missing?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "This property is no longer available." })).toBeVisible();
+
+  await page.goto("/seller");
+  await expect(page.getByRole("alert")).toContainText("Log in and activate seller access");
+
+  await page.goto("/support");
+  await expect(page.getByRole("heading", { name: "Staff access required" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Support queue" })).toHaveCount(0);
+
+  const buyerContext = await browser.newContext();
+  const buyer = await buyerContext.newPage();
+  await register(buyer, uniqueEmail("buyer"));
+  await buyer.goto("/support");
+  await expect(buyer.getByRole("heading", { name: "Staff access required" })).toBeVisible();
+  await buyer.getByRole("button", { name: "Account menu" }).click();
+  await expect(buyer.getByRole("menuitem", { name: "Support queue" })).toHaveCount(0);
+  await buyerContext.close();
 });

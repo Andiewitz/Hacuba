@@ -463,7 +463,10 @@ func (h Handler) Discover(w http.ResponseWriter, r *http.Request) {
 		badRequest(w, fields)
 		return
 	}
-	f.Cursor, f.Limit = nil, 6
+	// A search result must honour every selected filter. The landing section
+	// remains "Newly listed", but it must not leak unrelated properties into a
+	// filtered browse result.
+	f.Cursor, f.Limit, f.Sort = nil, 6, "newest"
 	sections := []discoverySection{}
 	add := func(id, title, reason string, filter listings.ListFilter) bool {
 		items, err := h.Store.ListPublished(r.Context(), filter)
@@ -486,7 +489,7 @@ func (h Handler) Discover(w http.ResponseWriter, r *http.Request) {
 		}
 		return true
 	}
-	if !add("new", "Newly listed", "Fresh properties added to Hacuba.", listings.ListFilter{Sort: "newest", Limit: 6}) {
+	if !add("new", "Newly listed", "Fresh properties added to Hacuba.", f) {
 		return
 	}
 	if viewerID, ok := h.trustedDiscoveryViewer(r); ok {

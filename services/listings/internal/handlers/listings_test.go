@@ -389,6 +389,48 @@ func TestDiscoveryPersonalizationRequiresProxySecretAndExcludesViewed(t *testing
 	t.Fatalf("personalized section missing: %#v", result.Sections)
 }
 
+func TestDiscoveryHonorsPublicBrowseFilters(t *testing.T) {
+	store := listings.NewMemoryStore()
+	owner := uuid.Must(uuid.NewV7())
+	now := time.Now().UTC()
+	price := func(value int64) *int64 { return &value }
+	matchingID, unrelatedID := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	for _, listing := range []listings.Listing{
+		{ID: matchingID, OwnerID: owner, ListingMode: listings.ModeSale, PropertyType: listings.TypeCondo, Title: "Matching Cebu condo", Description: "Condo used to verify discovery search filters.", PriceCentavos: price(560_000_000), Currency: "PHP", City: "Cebu City", Status: listings.StatusPublished, PublishedAt: &now},
+		{ID: unrelatedID, OwnerID: owner, ListingMode: listings.ModeSale, PropertyType: listings.TypeHouse, Title: "Unrelated expensive house", Description: "House that must not appear in a filtered condo discovery response.", PriceCentavos: price(900_000_000), Currency: "PHP", City: "Mandaue", Status: listings.StatusPublished, PublishedAt: &now},
+	} {
+		if _, err := store.Create(t.Context(), listing); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mux := server.NewMux(config.Config{JWTSecret: []byte("listings-test-secret-must-be-32-bytes!!")}, store)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/discover?city=Cebu+City&type=condo&min_price=300000000&max_price=600000000", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("filtered discover = %d: %s", rec.Code, rec.Body.String())
+	}
+	var result struct {
+		Sections []struct {
+			Listings []struct {
+				ID uuid.UUID `json:"id"`
+			} `json:"listings"`
+		} `json:"sections"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Sections) == 0 {
+		t.Fatal("filtered discovery returned no sections")
+	}
+	for _, section := range result.Sections {
+		for _, listing := range section.Listings {
+			if listing.ID != matchingID {
+				t.Fatalf("filtered discovery leaked unrelated listing %s", listing.ID)
+			}
+		}
+	}
+}
+
 func sellerToken(t *testing.T, secret []byte, id uuid.UUID) (string, string) {
 	t.Helper()
 	csrf := "csrf-value-" + id.String()
