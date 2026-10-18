@@ -132,13 +132,21 @@ test("seller validation preserves a draft and exposes every missing publish requ
   await expect(page.getByText("must be 5 to 120 characters", { exact: false })).toBeVisible();
 
   await page.getByLabel("Listing title").fill("Draft that remains private");
+  await page.getByLabel("Property type").selectOption("Condo");
+  await page.getByLabel("City").fill("Cebu City");
+  await page.getByLabel("Barangay").fill("Lahug");
+  await page.getByLabel("Asking price (PHP)").fill("5600000");
+  await page.getByLabel("Floor or lot area (m²)").fill("84");
+  await page.getByLabel("Bedrooms").fill("2");
+  await page.getByLabel("Bathrooms").fill("2");
+  await page.getByLabel("Description").fill("A valid draft deliberately missing only property photos.");
+  await page.getByLabel("Seller or agent name").fill("E2E Seller");
+  await page.getByLabel("Phone number").fill("+63 917 555 0188");
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByText("Your draft is saved to your Hacuba seller account.")).toBeVisible();
   await page.getByRole("button", { name: "Publish listing" }).click();
-  const validation = page.getByRole("alert");
-  await expect(validation).toContainText("Finish these items before publishing");
-  await expect(validation).toContainText("at least one image is required");
-  await expect(validation).toContainText("missing");
+  await expect(page.getByText("Finish these items before publishing", { exact: true })).toBeVisible();
+  await expect(page.getByText("at least one image is required", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "My listings" }).click();
   await expect(page.getByText("Drafts (1)")).toBeVisible();

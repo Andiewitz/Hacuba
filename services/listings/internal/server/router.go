@@ -54,6 +54,7 @@ func NewMuxWithObjects(cfg config.Config, store listings.Store, objects images.O
 	}); ok {
 		mux.Handle("GET /dev-uploads/{path...}", http.HandlerFunc(local.ServeHTTP))
 		mux.Handle("PUT /dev-uploads/{path...}", http.HandlerFunc(local.ServeHTTP))
+		mux.Handle("OPTIONS /dev-uploads/{path...}", http.HandlerFunc(local.ServeHTTP))
 	}
 
 	authenticated := func(next http.Handler) http.Handler {
