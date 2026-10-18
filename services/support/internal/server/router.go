@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,7 +37,7 @@ func NewMux(cfg config.Config, store reports.Store, reportMetrics *metrics.Metri
 	mux.HandleFunc("POST /reports", h.CreateReport)
 	mux.HandleFunc("GET /staff/reports", h.ListReports)
 	mux.HandleFunc("PATCH /staff/reports/{id}", h.TransitionReport)
-	return withSecurityHeaders(withRequestLog("support", mux))
+	return withSecurityHeaders(withRequestLog("support", mux, reportMetrics))
 }
 
 type statusRecorder struct {
@@ -55,7 +56,7 @@ func (w *statusRecorder) Write(body []byte) (int, error) {
 	return w.ResponseWriter.Write(body)
 }
 
-func withRequestLog(service string, next http.Handler) http.Handler {
+func withRequestLog(service string, next http.Handler, metrics *metrics.Metrics) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestID := uuid.NewString()
 		w.Header().Set("X-Request-ID", requestID)
@@ -70,6 +71,8 @@ func withRequestLog(service string, next http.Handler) http.Handler {
 			route = "unmatched"
 		}
 		slog.Info("http request", "service", service, "request_id", requestID, "method", r.Method, "route", route, "status", recorder.status, "latency_ms", time.Since(started).Milliseconds())
+		metrics.HTTPRequests.WithLabelValues(service, route, r.Method, strconv.Itoa(recorder.status)).Inc()
+		metrics.HTTPLatency.WithLabelValues(service, route, r.Method).Observe(time.Since(started).Seconds())
 	})
 }
 
