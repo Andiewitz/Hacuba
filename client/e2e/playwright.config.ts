@@ -7,7 +7,11 @@ export default defineConfig({
   workers: 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [["list"], ["html", { outputFolder: "./playwright-report", open: "never" }]] : "list",
+  reporter: process.env.CI
+    ? process.env.GITHUB_ACTIONS
+      ? [["list"], ["github"], ["html", { outputFolder: "./playwright-report", open: "never" }]]
+      : [["list"], ["html", { outputFolder: "./playwright-report", open: "never" }]]
+    : "list",
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000",
     trace: "retain-on-failure",

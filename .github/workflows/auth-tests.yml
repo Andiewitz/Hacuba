@@ -56,7 +56,7 @@ jobs:
             -coverprofile cover.out \
             ./internal/handlers ./internal/middleware ./internal/server ./internal/tokens
           go tool cover -func=cover.out | tee cover.txt
-          TOTAL=$(go tool cover -func=cover.out | awk '/^total:/ {gsub(/%/,"",$3); print $3}')
+          TOTAL=$(go tool cover -func=cover.out | awk '/^total:/ {gsub(/%/,"",$NF); print $NF}')
           echo "total coverage: $TOTAL%"
           python3 -c "import sys; sys.exit(0 if float('$TOTAL') >= 80 else 1)" \
             || (echo "coverage $TOTAL% below 80% contract gate" && exit 1)
