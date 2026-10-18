@@ -39,3 +39,23 @@ func TestLocalStoreUploadsAndServesExpectedObject(t *testing.T) {
 		t.Fatalf("get = %d, %q", getResult.Code, getResult.Body.String())
 	}
 }
+
+func TestLocalStoreAllowsBrowserDirectUploads(t *testing.T) {
+	store, err := NewLocalStore(filepath.Join(t.TempDir(), "uploads"), "http://localhost:8081/dev-uploads")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	preflight := httptest.NewRequest(http.MethodOptions, "/dev-uploads/listings/listing-id/image.jpg", nil)
+	result := httptest.NewRecorder()
+	store.ServeHTTP(result, preflight)
+	if result.Code != http.StatusNoContent {
+		t.Fatalf("preflight = %d", result.Code)
+	}
+	if got := result.Header().Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Fatalf("allow origin = %q, want wildcard for development uploads", got)
+	}
+	if got := result.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(got, http.MethodPut) {
+		t.Fatalf("allow methods = %q, want PUT", got)
+	}
+}

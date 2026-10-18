@@ -53,6 +53,17 @@ func (s *LocalStore) Head(_ context.Context, key string) error {
 func (s *LocalStore) MarkRegistered(_ context.Context, _ string) error { return nil }
 
 func (s *LocalStore) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Development uploads are presigned to the listings port while the client
+	// runs on a separate local origin. Mirror the browser-facing S3 contract so
+	// local and E2E uploads exercise the same direct-upload flow.
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, PUT, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	key := strings.TrimPrefix(r.URL.Path, "/dev-uploads/")
 	path, ok := s.safePath(key)
 	if !ok {

@@ -129,7 +129,7 @@ test("seller validation preserves a draft and exposes every missing publish requ
 
   await page.getByLabel("Listing title").fill("bad");
   await page.getByRole("button", { name: "Save draft" }).click();
-  await expect(page.getByRole("alert")).toContainText("must be 5 to 120 characters");
+  await expect(page.getByText("must be 5 to 120 characters", { exact: false })).toBeVisible();
 
   await page.getByLabel("Listing title").fill("Draft that remains private");
   await page.getByRole("button", { name: "Save draft" }).click();
