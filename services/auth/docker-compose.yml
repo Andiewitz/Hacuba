@@ -7,7 +7,9 @@
 
 services:
   auth:
-    build: .
+    build:
+      context: ../..
+      dockerfile: services/auth/Dockerfile
     env_file:
       - .env
     environment:

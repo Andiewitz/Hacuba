@@ -1,0 +1,11 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "services/support/Dockerfile"
+watchPatterns = ["services/support/**", "shared/authjwt/**"]
+
+[deploy]
+preDeployCommand = ["/migrate -dir /migrations"]
+healthcheckPath = "/readyz"
+healthcheckTimeout = 120
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5

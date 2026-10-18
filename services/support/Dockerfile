@@ -6,10 +6,13 @@ WORKDIR /app/services/support
 RUN go mod download
 COPY services/support .
 RUN CGO_ENABLED=0 go build -o /support ./cmd/server
+RUN CGO_ENABLED=0 go build -o /migrate ./cmd/migrate
 
 FROM alpine:3.20
 RUN adduser -D -u 10001 support
 USER support
 COPY --from=build /support /support
+COPY --from=build /migrate /migrate
+COPY services/support/migrations /migrations
 EXPOSE 8082
 ENTRYPOINT ["/support"]

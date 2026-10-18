@@ -31,9 +31,9 @@ Create these Railway services from this monorepo:
 | Railway service | Source | Public | Required healthcheck |
 | --- | --- | --- | --- |
 | `client` | `client/Dockerfile`, repository root build context | Yes | `/api/health` |
-| `auth` | `services/auth/Dockerfile` | No | `/healthz` then `/readyz` |
-| `listings` | `services/listings/Dockerfile`, repository root build context | No | `/healthz` then `/readyz` |
-| `support` | `services/support/Dockerfile`, repository root build context | No | `/healthz` then `/readyz` |
+| `auth` | `services/auth/Dockerfile` | No | `/readyz` |
+| `listings` | `services/listings/Dockerfile`, repository root build context | No | `/readyz` |
+| `support` | `services/support/Dockerfile`, repository root build context | No | `/readyz` |
 | `auth-db`, `listings-db`, `support-db` | Railway PostgreSQL | No | managed by Railway |
 
 Use three managed Postgres services, one for each owner service. Do not share
@@ -93,7 +93,7 @@ migration filenames in a schema-migrations table, take a PostgreSQL advisory
 lock, run files in lexical order, and stop on the first error. It must be safe
 to run repeatedly and never run automatically inside an application request.
 
-Add deployment configuration and documentation for the five application
+Add deployment configuration and documentation for the four application
 services:
 
 - Auth, Listings, and Support use their existing Dockerfiles and their private

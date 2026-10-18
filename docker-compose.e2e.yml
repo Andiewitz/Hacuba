@@ -4,7 +4,9 @@
 # URL; Postgres is never published.
 services:
   auth:
-    build: ./services/auth
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
     environment:
       DATABASE_URL: postgres://auth_service:e2e-password@auth-db:5432/auth?sslmode=disable
       JWT_SECRET: e2e-jwt-secret-must-be-at-least-thirty-two-bytes
