@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hacuba/support/internal/config"
 	"github.com/hacuba/support/internal/handlers"
 	"github.com/hacuba/support/internal/metrics"
@@ -34,7 +36,41 @@ func NewMux(cfg config.Config, store reports.Store, reportMetrics *metrics.Metri
 	mux.HandleFunc("POST /reports", h.CreateReport)
 	mux.HandleFunc("GET /staff/reports", h.ListReports)
 	mux.HandleFunc("PATCH /staff/reports/{id}", h.TransitionReport)
-	return withSecurityHeaders(mux)
+	return withSecurityHeaders(withRequestLog("support", mux))
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusRecorder) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+func (w *statusRecorder) Write(body []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	return w.ResponseWriter.Write(body)
+}
+
+func withRequestLog(service string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := uuid.NewString()
+		w.Header().Set("X-Request-ID", requestID)
+		recorder := &statusRecorder{ResponseWriter: w}
+		started := time.Now()
+		next.ServeHTTP(recorder, r)
+		if recorder.status == 0 {
+			recorder.status = http.StatusOK
+		}
+		route := r.Pattern
+		if route == "" {
+			route = "unmatched"
+		}
+		slog.Info("http request", "service", service, "request_id", requestID, "method", r.Method, "route", route, "status", recorder.status, "latency_ms", time.Since(started).Milliseconds())
+	})
 }
 
 func withSecurityHeaders(next http.Handler) http.Handler {

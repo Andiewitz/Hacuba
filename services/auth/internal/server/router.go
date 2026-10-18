@@ -2,9 +2,11 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hacuba/auth/internal/config"
 	"github.com/hacuba/auth/internal/handlers"
 	"github.com/hacuba/auth/internal/middleware"
@@ -50,7 +52,42 @@ func NewMux(cfg config.Config, store users.Store) http.Handler {
 		middleware.RequireCSRF(handlers.BecomeSeller(cfg, store)))
 	mux.Handle("POST /auth/become-seller", becomeSeller)
 
-	return withSecurityHeaders(mux)
+	return withSecurityHeaders(withRequestLog("auth", mux))
+}
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusRecorder) WriteHeader(status int) {
+	w.status = status
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *statusRecorder) Write(body []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	return w.ResponseWriter.Write(body)
+}
+
+func withRequestLog(service string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestID := uuid.NewString()
+		w.Header().Set("X-Request-ID", requestID)
+		recorder := &statusRecorder{ResponseWriter: w}
+		started := time.Now()
+		next.ServeHTTP(recorder, r)
+		if recorder.status == 0 {
+			recorder.status = http.StatusOK
+		}
+		route := r.Pattern
+		if route == "" {
+			route = "unmatched"
+		}
+		slog.Info("http request", "service", service, "request_id", requestID, "method", r.Method, "route", route, "status", recorder.status, "latency_ms", time.Since(started).Milliseconds())
+	})
 }
 
 // withSecurityHeaders sets baseline response headers on every route,

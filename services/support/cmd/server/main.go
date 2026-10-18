@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +20,9 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("support: invalid config: %v", err)
+	}
+	if cfg.Production {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

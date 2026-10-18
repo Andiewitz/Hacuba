@@ -13,6 +13,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -28,6 +29,9 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("auth: invalid config: %v", err)
+	}
+	if cfg.Production {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	}
 	// Production requires Postgres. Persistent local development must opt in
 	// to the separate SQLite store so a production launch cannot fall back.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,6 +22,9 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("listings: invalid config: %v", err)
+	}
+	if cfg.Production {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	}
 	var store listings.Store
 	if cfg.DatabaseURL != "" {
