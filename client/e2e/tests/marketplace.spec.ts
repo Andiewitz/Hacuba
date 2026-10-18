@@ -15,7 +15,7 @@ async function register(page: Page, email: string) {
   await dialog.getByRole("button", { name: "Create account" }).click();
   await dialog.getByLabel("Email").fill(email);
   await dialog.getByRole("button", { name: "Continue", exact: true }).click();
-  await dialog.getByLabel("Password").fill(password);
+  await dialog.getByRole("textbox", { name: "Password" }).fill(password);
   await dialog.getByRole("button", { name: "Create account" }).click();
   await expect(dialog).toBeHidden();
 }
@@ -115,7 +115,7 @@ test("seller publishing, public reporting, and staff moderation work across the 
   await seller.getByRole("button", { name: "Account menu" }).click();
   await seller.getByRole("menuitem", { name: "Log out" }).click();
   await seller.goto("/seller");
-  await expect(seller.getByRole("alert")).toContainText("Log in and activate seller access");
+  await expect(seller.getByText("Log in and activate seller access from the navigation before saving a listing.", { exact: true })).toBeVisible();
 
   await Promise.all([sellerContext.close(), buyerContext.close(), staffContext.close()]);
 });
@@ -151,7 +151,7 @@ test("anonymous and buyer accounts cannot enter seller or staff workspaces", asy
   await expect(page.getByRole("heading", { name: "This property is no longer available." })).toBeVisible();
 
   await page.goto("/seller");
-  await expect(page.getByRole("alert")).toContainText("Log in and activate seller access");
+  await expect(page.getByText("Log in and activate seller access from the navigation before saving a listing.", { exact: true })).toBeVisible();
 
   await page.goto("/support");
   await expect(page.getByRole("heading", { name: "Staff access required" })).toBeVisible();

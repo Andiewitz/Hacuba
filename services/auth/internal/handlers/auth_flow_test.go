@@ -7,12 +7,15 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hacuba/auth/internal/config"
 	"github.com/hacuba/auth/internal/middleware"
 	"github.com/hacuba/auth/internal/users"
@@ -134,5 +137,46 @@ func TestMeReadsOnlyOwnRow(t *testing.T) {
 	}
 	if code, _ := getMe("tampered.token.value"); code != http.StatusUnauthorized {
 		t.Errorf("tampered me: code=%d, want 401", code)
+	}
+}
+
+type meFailureStore struct {
+	users.Store
+	calls      int
+	handlerErr error
+}
+
+func (s *meFailureStore) GetUserByID(ctx context.Context, id uuid.UUID) (*users.User, error) {
+	s.calls++
+	if s.calls == 1 {
+		return s.Store.GetUserByID(ctx, id)
+	}
+	return nil, s.handlerErr
+}
+
+func TestMeMapsMissingAndFailedUserReads(t *testing.T) {
+	cfg := testConfig()
+	backing := users.NewMemoryStore()
+	sess, _ := registerSession(t, cfg, backing, uniqueTestEmail("me-failure"))
+
+	cases := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "deleted account", err: users.ErrNotFound, want: http.StatusNotFound},
+		{name: "storage failure", err: errors.New("database unavailable"), want: http.StatusInternalServerError},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := &meFailureStore{Store: backing, handlerErr: tc.err}
+			req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
+			req.Header.Set("Authorization", "Bearer "+sess.AccessToken)
+			rec := httptest.NewRecorder()
+			middleware.Authenticate(cfg.JWTSecret, store, Me(store)).ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("me = %d (%s), want %d", rec.Code, rec.Body.String(), tc.want)
+			}
+		})
 	}
 }
